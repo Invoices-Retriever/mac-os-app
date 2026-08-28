@@ -226,12 +226,21 @@ final class AppModel {
 
     // MARK: - Running
 
+    /// UC-01 and UC-03. Establishes the session and stops there — collecting is
+    /// a separate action, because a user may well want to deal with two-factor
+    /// now and fetch invoices later.
+    ///
+    /// It says so when it worked. Succeeding in silence is indistinguishable
+    /// from doing nothing, and was reported as exactly that.
     func authenticate(_ source: Source) async {
         runningSourceIDs.insert(source.id)
         defer { runningSourceIDs.remove(source.id) }
         do {
             try await collector.authenticate(source: source)
             await reload()
+            alert = AlertContent(
+                title: t("Signed in to %@", source.displayName),
+                message: t("The session is stored, so later collections will not ask for your two-factor code again. Use “Collect” to fetch your invoices now."))
         } catch {
             alert = AlertContent(title: t("Sign-in to %@ failed", source.displayName),
                                  message: error.localizedDescription)

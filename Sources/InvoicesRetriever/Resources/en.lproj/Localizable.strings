@@ -199,6 +199,7 @@
 "Sign in" = "Sign in";
 "Sign in, then go to the page that lists your invoices. Come back here and press Analyse." = "Sign in, then go to the page that lists your invoices. Come back here and press Analyse.";
 "Sign-in to %@ failed" = "Sign-in to %@ failed";
+"Signed in to %@" = "Signed in to %@";
 "Signing in once stores the session, so later collections do not need your two-factor code again." = "Signing in once stores the session, so later collections do not need your two-factor code again.";
 "Size" = "Size";
 "Some fields were guessed. Check and confirm them." = "Some fields were guessed. Check and confirm them.";
@@ -221,6 +222,7 @@
 "The plugin index address in Settings is not a URL." = "The plugin index address in Settings is not a URL.";
 "The plugin index, to find new and updated plugins" = "The plugin index, to find new and updated plugins";
 "The same register as JSON, for a script." = "The same register as JSON, for a script.";
+"The session is stored, so later collections will not ask for your two-factor code again. Use “Collect” to fetch your invoices now." = "The session is stored, so later collections will not ask for your two-factor code again. Use “Collect” to fetch your invoices now.";
 "The sign-in page is the usual starting point. If you are already signed in elsewhere, start at the billing page instead — the recording uses its own browser profile and shares nothing with your sources." = "The sign-in page is the usual starting point. If you are already signed in elsewhere, start at the billing page instead — the recording uses its own browser profile and shares nothing with your sources.";
 "The stored session has expired. Use “Sign in” to open the portal, deal with two-factor authentication, then collect again." = "The stored session has expired. Use “Sign in” to open the portal, deal with two-factor authentication, then collect again.";
 "The supplier" = "The supplier";

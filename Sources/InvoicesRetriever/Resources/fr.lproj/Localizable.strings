@@ -199,6 +199,7 @@
 "Sign in" = "Se connecter";
 "Sign in, then go to the page that lists your invoices. Come back here and press Analyse." = "Connectez-vous, puis allez sur la page qui liste vos factures. Revenez ici et appuyez sur Analyser.";
 "Sign-in to %@ failed" = "La connexion à %@ a échoué";
+"Signed in to %@" = "Connecté à %@";
 "Signing in once stores the session, so later collections do not need your two-factor code again." = "Se connecter une fois enregistre la session : les collectes suivantes n'auront plus besoin de votre code de double authentification.";
 "Size" = "Taille";
 "Some fields were guessed. Check and confirm them." = "Certains champs ont été devinés. Vérifiez-les et confirmez.";
@@ -221,6 +222,7 @@
 "The plugin index address in Settings is not a URL." = "L'adresse de l'index des plugins dans les réglages n'est pas une URL.";
 "The plugin index, to find new and updated plugins" = "L'index des plugins, pour trouver les plugins nouveaux et mis à jour";
 "The same register as JSON, for a script." = "Le même registre en JSON, pour un script.";
+"The session is stored, so later collections will not ask for your two-factor code again. Use “Collect” to fetch your invoices now." = "La session est enregistrée : les collectes suivantes ne redemanderont pas votre code de double authentification. Utilisez « Collecter » pour récupérer vos factures maintenant.";
 "The sign-in page is the usual starting point. If you are already signed in elsewhere, start at the billing page instead — the recording uses its own browser profile and shares nothing with your sources." = "La page de connexion est le point de départ habituel. Si vous êtes déjà connecté ailleurs, partez plutôt de la page de facturation — l'enregistrement utilise son propre profil de navigateur et ne partage rien avec vos sources.";
 "The stored session has expired. Use “Sign in” to open the portal, deal with two-factor authentication, then collect again." = "La session enregistrée a expiré. Utilisez « Se connecter » pour ouvrir le portail, passez la double authentification, puis relancez la collecte.";
 "The supplier" = "Le fournisseur";
