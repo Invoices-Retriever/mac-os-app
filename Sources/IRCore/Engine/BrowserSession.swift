@@ -178,3 +178,26 @@ public enum JSONValue: Sendable, Hashable, Codable {
         }
     }
 }
+
+
+/// Decides whether a frame's answer to a DOM query is worth taking.
+///
+/// A page built as a shell around an iframe — OVHcloud's manager, and most
+/// portals wrapping an older application — answers "not here" to every selector
+/// a plugin cares about, while the real document sits one frame down. A driver
+/// that can reach subframes needs a rule for when to keep looking, and it is
+/// worth stating once, here, where it can be tested without a browser.
+public enum FrameAnswer {
+    public static func isAnswer(_ value: JSONValue) -> Bool {
+        switch value {
+        case .null: return false
+        case .bool(let flag): return flag
+        // `{ ok: false, reason: "not-found" }` is what click and type return
+        // when the element is not in this document.
+        case .object(let fields): return fields["ok"]?.boolValue ?? true
+        case .string(let text): return !text.isEmpty
+        case .array(let items): return !items.isEmpty
+        case .number: return true
+        }
+    }
+}

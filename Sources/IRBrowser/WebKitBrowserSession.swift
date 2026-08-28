@@ -34,6 +34,8 @@ public final class WebKitBrowserSession: NSObject, BrowserSession {
     private var observedResponses: [ObservedResponse] = []
     private var downloads = DownloadCoordinator()
     private var blockedHost: String?
+    /// Frames other than the main one, so the DOM steps can see into them.
+    private var childFrames: [WKFrameInfo] = []
 
     init(sourceID: UUID, policy: DomainPolicy, title: String,
          logger: RedactingLogger = .shared) async throws {
@@ -269,9 +271,34 @@ public final class WebKitBrowserSession: NSObject, BrowserSession {
 
     // MARK: - Scripting
 
+    /// Runs the script in the main frame, then in any subframe, and returns the
+    /// first frame that had an answer.
+    ///
+    /// A portal that renders itself inside an iframe — OVHcloud's manager does,
+    /// and it is a common shape for anything built as a shell around an older
+    /// application — puts every invoice out of reach of a script confined to the
+    /// main document. `waitForElement` then times out against a page that
+    /// visibly contains the element, which is a miserable thing to debug.
+    ///
+    /// "Had an answer" means: not null, not false, and not one of the
+    /// `{ ok: false }` results the interaction snippets return when they cannot
+    /// find their target. Anything else is taken at face value from the first
+    /// frame that produced it.
     public func evaluate(_ javascript: String) async throws -> JSONValue {
+        let main = try await evaluate(javascript, in: nil)
+        if FrameAnswer.isAnswer(main) { return main }
+
+        for frame in childFrames.reversed() {
+            guard let result = try? await evaluate(javascript, in: frame) else { continue }
+            if FrameAnswer.isAnswer(result) { return result }
+        }
+        return main
+    }
+
+    private func evaluate(_ javascript: String, in frame: WKFrameInfo?) async throws -> JSONValue {
         do {
-            let result = try await webView.evaluateJavaScript(javascript)
+            let result = try await webView.evaluateJavaScript(
+                javascript, in: frame, contentWorld: .page)
             return JSONValue(any: result)
         } catch let error as NSError {
             // WKWebView reports "no result" as an error for statements that
@@ -325,8 +352,18 @@ public final class WebKitBrowserSession: NSObject, BrowserSession {
     }
 
     public func captureDOMOutline() async throws -> String {
-        let value = try await evaluate(DOMScriptsBridge.outline)
-        return value.stringValue ?? ""
+        var sections: [String] = []
+        if let main = try? await evaluate(DOMScriptsBridge.outline, in: nil).stringValue, !main.isEmpty {
+            sections.append("=== main frame: \(webView.url?.absoluteString ?? "") ===\n" + main)
+        }
+        // A shell page's own structure says nothing about the application
+        // inside it, and the selector a plugin needs is in there.
+        for frame in childFrames.reversed() {
+            guard let inner = try? await evaluate(DOMScriptsBridge.outline, in: frame).stringValue,
+                  !inner.isEmpty else { continue }
+            sections.append("=== frame: \(frame.request.url?.absoluteString ?? "unknown") ===\n" + inner)
+        }
+        return sections.joined(separator: "\n\n")
     }
 
     public func drainNetworkResponses() async -> [ObservedResponse] {
@@ -417,6 +454,13 @@ extension WebKitBrowserSession: WKNavigationDelegate {
             return
         }
         lastActivityAt = Date()
+        if let frame = navigationAction.targetFrame, !frame.isMainFrame {
+            // Portals built as a shell around an application — OVHcloud's
+            // manager is one — put everything worth reading in a subframe.
+            childFrames.removeAll { $0 === frame }
+            childFrames.append(frame)
+            if childFrames.count > 8 { childFrames.removeFirst() }
+        }
         decisionHandler(.allow)
     }
 

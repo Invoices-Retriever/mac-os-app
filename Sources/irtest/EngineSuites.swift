@@ -465,3 +465,33 @@ func runSignInSuites() async {
         }
     }
 }
+
+/// Frames, and the fact that a portal's real content is often not in the main
+/// document at all.
+@MainActor
+func runFrameSuites() async {
+
+    await suite("Frames") {
+        await test("A result from the main frame is taken when it has one") {
+            // The rule the driver uses to decide whether to look further. Kept
+            // here because the driver needs WebKit and this does not.
+            expect(FrameAnswer.isAnswer(.bool(true)))
+            expect(FrameAnswer.isAnswer(.string("F-2026-001")))
+            expect(FrameAnswer.isAnswer(.array([.string("x")])))
+            expect(FrameAnswer.isAnswer(.number(3)))
+            expect(FrameAnswer.isAnswer(.object(["ok": .bool(true)])))
+        }
+
+        await test("A frame that found nothing does not stop the search") {
+            // These are what the DOM snippets return when the element is not in
+            // that document: the shell page of an iframe-based portal answers
+            // exactly this for every selector the plugin cares about.
+            expect(!FrameAnswer.isAnswer(.null))
+            expect(!FrameAnswer.isAnswer(.bool(false)))
+            expect(!FrameAnswer.isAnswer(.string("")))
+            expect(!FrameAnswer.isAnswer(.array([])))
+            expect(!FrameAnswer.isAnswer(.object(["ok": .bool(false),
+                                                  "reason": .string("not-found")])))
+        }
+    }
+}
