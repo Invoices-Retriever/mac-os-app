@@ -68,7 +68,11 @@ public enum IRError: Error, LocalizedError, Sendable {
             return true
         case .authenticationRequired, .authenticationFailed, .blockedByPortal,
              .domainNotAllowed, .assertionFailed, .invalidPlugin, .engineTooOld,
-             .vault, .export, .cancelled, .runBudgetExhausted:
+             .vault, .export, .cancelled, .runBudgetExhausted,
+             // Retrying re-asks a question the user has already answered, or
+             // re-fails against the same access list. Neither improves with a
+             // second attempt; both need the user to do something.
+             .credentialsUnreadable:
             return false
         }
     }

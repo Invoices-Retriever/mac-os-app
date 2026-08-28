@@ -80,7 +80,7 @@ public final class CredentialVault: @unchecked Sendable {
 
     public func store(_ value: String, for key: String, source: UUID,
                       requireBiometrics: Bool = false) throws {
-        var stored = try bundle(for: source)
+        var stored = try bundleForWriting(source)
         if value.isEmpty { stored.removeValue(forKey: key) } else { stored[key] = value }
         try write(stored, for: source, requireBiometrics: requireBiometrics)
     }
@@ -88,7 +88,7 @@ public final class CredentialVault: @unchecked Sendable {
     /// Writes several at once, which is what adding a source actually does.
     public func store(_ values: [String: String], source: UUID,
                       requireBiometrics: Bool = false) throws {
-        var stored = try bundle(for: source)
+        var stored = try bundleForWriting(source)
         for (key, value) in values {
             if value.isEmpty { stored.removeValue(forKey: key) } else { stored[key] = value }
         }
@@ -119,6 +119,32 @@ public final class CredentialVault: @unchecked Sendable {
     }
 
     // MARK: - Storage
+
+    /// What is stored, for the purpose of writing over it.
+    ///
+    /// Writing is the *remedy* for an item the keychain will not release — the
+    /// user is told to enter their credentials again, and doing so rewrites the
+    /// item under the signature of the application actually running. So this
+    /// path must not be blocked by the very failure it exists to fix. Reading
+    /// first is only ever an optimisation, to keep the fields the user is not
+    /// retyping; when the old value is unreachable there is nothing to keep,
+    /// and it is replaced wholesale.
+    private func bundleForWriting(_ source: UUID) throws -> [String: String] {
+        do {
+            return try bundle(for: source)
+        } catch let error as IRError where Self.isUnreadable(error) {
+            logger.warning("the stored credentials for this source could not be read; "
+                         + "replacing the keychain item rather than merging into it")
+            return [:]
+        }
+    }
+
+    /// Whether a failure means "the item is there but shut" rather than
+    /// something a write should not paper over.
+    public static func isUnreadable(_ error: IRError) -> Bool {
+        if case .credentialsUnreadable = error { return true }
+        return false
+    }
 
     private func bundle(for source: UUID, prompt: String? = nil) throws -> [String: String] {
         if let raw = try keychain.get(account: account(source: source), prompt: prompt),

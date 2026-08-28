@@ -1046,3 +1046,40 @@ func runIncrementalSuites() async {
         }
     }
 }
+
+
+/// The keychain refusing to hand back what it holds — a failure the user meets
+/// after any change of code signature, and one they can only escape if the
+/// application lets them write over it.
+@MainActor
+func runVaultRecoverySuites() async {
+    await suite("Unreadable credentials") {
+
+        await test("A refusal is not retried") {
+            let error = IRError.credentialsUnreadable(reason: "shut", source: "source.X")
+            expect(!error.isRetryable, "asking again re-fails against the same access list")
+            expect(!error.needsUserSignIn, "the portal is not the problem; the keychain is")
+        }
+
+        await test("The message says what to do, not what went wrong") {
+            let error = IRError.credentialsUnreadable(
+                reason: "macOS would not release the saved credentials: they were stored by a "
+                      + "differently signed copy of this application. Open the source, enter them "
+                      + "again, and this stops happening.",
+                source: "source.X")
+            let text = error.errorDescription ?? ""
+            expect(text.contains("enter them again"), text)
+            // An OSStatus is not something a person can act on.
+            expect(!text.contains("OSStatus"), text)
+        }
+
+        await test("Writing treats an unreadable item as replaceable") {
+            // The remedy must not depend on the read that is failing.
+            expect(CredentialVault.isUnreadable(
+                .credentialsUnreadable(reason: "shut", source: "source.X")))
+            // Anything else is a real failure and must still stop a write.
+            expect(!CredentialVault.isUnreadable(.vault("the keychain is not available")))
+            expect(!CredentialVault.isUnreadable(.storage("disk full")))
+        }
+    }
+}
