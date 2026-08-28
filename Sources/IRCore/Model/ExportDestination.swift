@@ -49,7 +49,7 @@ public struct ExportDestination: Codable, Sendable, Identifiable, Hashable {
     /// bearer token and a Paperless API token do.
     public var needsSecret: Bool {
         switch kind {
-        case .webhook, .paperless: return true
+        case .webhook, .paperless, .smtp: return true
         case .folder, .csv, .json, .email: return false
         }
     }
@@ -68,6 +68,13 @@ public struct ExportDestination: Codable, Sendable, Identifiable, Hashable {
             // A recipient can be filled in the mail window, so there is nothing
             // this destination cannot do without.
             return true
+        case .smtp:
+            // Nothing can be typed in later here: the message goes out on its
+            // own, so everything it needs has to be present now.
+            return !(config["host"] ?? "").isEmpty
+                && !(config["username"] ?? "").isEmpty
+                && !(config["recipients"] ?? "").isEmpty
+                && hasSecret
         }
     }
 }
@@ -86,6 +93,8 @@ public extension ExportDestinationKind {
             return core("Posts each document to a URL as multipart: the metadata as JSON, the PDF as a file.")
         case .email:
             return core("Opens a message with the invoices attached. Nothing is sent: you read it and press Send yourself.")
+        case .smtp:
+            return core("Sends one message with the invoices attached, through your own mail server. Runs on its own — this is how an accounting tool's intake address gets fed.")
         case .paperless:
             return core("Uploads each PDF into a Paperless-ngx instance, with its date and title already filled in.")
         }
@@ -98,6 +107,7 @@ public extension ExportDestinationKind {
         case .json: return "curlybraces"
         case .webhook: return "bolt.horizontal.fill"
         case .email: return "envelope.fill"
+        case .smtp: return "paperplane.fill"
         case .paperless: return "tray.full.fill"
         }
     }

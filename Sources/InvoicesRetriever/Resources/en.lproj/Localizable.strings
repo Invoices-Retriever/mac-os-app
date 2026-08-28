@@ -338,3 +338,17 @@
 "Numeric tag ids from your Paperless instance, applied to every document." = "Numeric tag ids from your Paperless instance, applied to every document.";
 "Send to…" = "Send to…";
 "Manage exports…" = "Manage exports…";
+"Recipients" = "Recipients";
+"To" = "To";
+"From" = "From";
+"Several addresses, separated by commas. One message with every invoice attached." = "Several addresses, separated by commas. One message with every invoice attached.";
+"Mail server" = "Mail server";
+"Server" = "Server";
+"Encryption" = "Encryption";
+"Port" = "Port";
+"User name" = "User name";
+"Password" = "Password";
+"TLS (465)" = "TLS (465)";
+"STARTTLS (587)" = "STARTTLS (587)";
+"None" = "None";
+"Without encryption the password crosses the network in the clear. Only for a server on this Mac." = "Without encryption the password crosses the network in the clear. Only for a server on this Mac.";

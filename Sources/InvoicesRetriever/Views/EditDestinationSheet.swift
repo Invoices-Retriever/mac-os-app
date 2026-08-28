@@ -132,6 +132,61 @@ struct EditDestinationSheet: View {
                       systemImage: "hand.raised")
                     .font(.callout).foregroundStyle(.secondary)
             }
+        case .smtp:
+            Section(t("Recipients")) {
+                TextField(t("To"), text: binding("recipients"),
+                          prompt: Text(verbatim: "comptable@example.com"))
+                Text(t("Several addresses, separated by commas. One message with every invoice attached."))
+                    .font(.caption).foregroundStyle(.secondary)
+                TextField(t("From"), text: binding("from"),
+                          prompt: Text(verbatim: "moi@example.com"))
+            }
+            Section(t("Mail server")) {
+                TextField(t("Server"), text: binding("host"),
+                          prompt: Text(verbatim: "smtp.example.com"))
+                Picker(t("Encryption"), selection: securityBinding) {
+                    ForEach(SMTPSettings.Security.allCases, id: \.self) { security in
+                        Text(Self.securityName(security)).tag(security)
+                    }
+                }
+                TextField(t("Port"), text: binding("port"),
+                          prompt: Text(verbatim: String(SMTPSettings.defaultPort(for: security))))
+                TextField(t("User name"), text: binding("username"))
+                SecureField(t("Password"), text: $secret)
+                Text(secretHint).font(.caption).foregroundStyle(.secondary)
+                if security == .none {
+                    Label(t("Without encryption the password crosses the network in the clear. Only for a server on this Mac."),
+                          systemImage: "exclamationmark.triangle.fill")
+                        .font(.callout).foregroundStyle(.orange)
+                }
+            }
+        }
+    }
+
+    private var security: SMTPSettings.Security {
+        SMTPSettings.Security(rawValue: destination.config["security"] ?? "") ?? .startTLS
+    }
+
+    /// Changing the encryption moves the port with it, unless the user has
+    /// already typed one — 587 with implicit TLS selected is a connection that
+    /// hangs, and nobody would guess why.
+    private var securityBinding: Binding<SMTPSettings.Security> {
+        Binding(get: { security },
+                set: { chosen in
+                    let previous = SMTPSettings.defaultPort(for: security)
+                    destination.config["security"] = chosen.rawValue
+                    let typed = destination.config["port"] ?? ""
+                    if typed.isEmpty || typed == String(previous) {
+                        destination.config["port"] = String(SMTPSettings.defaultPort(for: chosen))
+                    }
+                })
+    }
+
+    static func securityName(_ security: SMTPSettings.Security) -> String {
+        switch security {
+        case .tls: return t("TLS (465)")
+        case .startTLS: return t("STARTTLS (587)")
+        case .none: return t("None")
         }
     }
 

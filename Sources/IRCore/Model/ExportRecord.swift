@@ -26,7 +26,7 @@ public struct ExportRecord: Codable, Sendable, Identifiable, Hashable {
 }
 
 public enum ExportDestinationKind: String, Codable, Sendable, Hashable, CaseIterable {
-    case folder, csv, json, webhook, email, paperless
+    case folder, csv, json, webhook, email, smtp, paperless
 
     public var displayName: String {
         switch self {
@@ -34,7 +34,8 @@ public enum ExportDestinationKind: String, Codable, Sendable, Hashable, CaseIter
         case .csv: return core("CSV register")
         case .json: return core("JSON register")
         case .webhook: return core("Webhook")
-        case .email: return core("E-mail")
+        case .email: return core("E-mail (your mail app)")
+        case .smtp: return core("E-mail (mail server)")
         case .paperless: return core("Paperless-ngx")
         }
     }

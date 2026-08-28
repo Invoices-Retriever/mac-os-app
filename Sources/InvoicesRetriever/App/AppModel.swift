@@ -519,12 +519,33 @@ final class AppModel {
                 .split(separator: ",").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
             return PaperlessExporter(baseURL: url, token: secret, tagIDs: tags, sourceNames: names)
         case .email:
-            let recipients = (destination.config["recipients"] ?? "")
-                .split(whereSeparator: { $0 == "," || $0 == ";" || $0 == " " })
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty }
-            return EmailExporter(recipients: recipients, entityName: entity?.name)
+            return EmailExporter(recipients: Self.recipients(in: destination),
+                                 entityName: entity?.name)
+        case .smtp:
+            guard let host = destination.config["host"], !host.isEmpty,
+                  let secret, !secret.isEmpty else { return nil }
+            let security = SMTPSettings.Security(rawValue: destination.config["security"] ?? "")
+                ?? .startTLS
+            let settings = SMTPSettings(
+                host: host,
+                port: Int(destination.config["port"] ?? "") ?? SMTPSettings.defaultPort(for: security),
+                security: security,
+                username: destination.config["username"] ?? "",
+                password: secret,
+                from: destination.config["from"] ?? destination.config["username"] ?? "")
+            return SMTPExporter(settings: settings,
+                                recipients: Self.recipients(in: destination),
+                                entityName: entity?.name)
         }
+    }
+
+    /// Recipients are written the way people write them: commas, semicolons or
+    /// just spaces between addresses.
+    static func recipients(in destination: ExportDestination) -> [String] {
+        (destination.config["recipients"] ?? "")
+            .split(whereSeparator: { $0 == "," || $0 == ";" || $0 == " " })
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
     }
 
     /// Sends the documents currently in view to a saved destination, and

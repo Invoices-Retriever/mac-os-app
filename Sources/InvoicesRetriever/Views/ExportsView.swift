@@ -229,7 +229,7 @@ private struct ConnectedCard: View {
                                 : (path as NSString).lastPathComponent
         case .webhook, .paperless:
             return URL(string: destination.config["url"] ?? "")?.host ?? destination.kind.displayName
-        case .email:
+        case .email, .smtp:
             let recipients = destination.config["recipients"] ?? ""
             return recipients.isEmpty ? destination.kind.displayName : recipients
         }

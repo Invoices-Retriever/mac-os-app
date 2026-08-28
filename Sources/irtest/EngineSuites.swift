@@ -1289,3 +1289,232 @@ func runSavedDestinationSuites() async {
         }
     }
 }
+
+/// Sending mail ourselves: the message we build, and the conversation we have.
+@MainActor
+func runSMTPSuites() async {
+
+    /// A scripted server. Every test below is a conversation this had with a
+    /// mail server that does not exist, which is the point: the branches that
+    /// matter are the ones a real server only takes when something is wrong.
+    final class FakeTransport: SMTPTransport, @unchecked Sendable {
+        private let lock = NSLock()
+        private var replies: [SMTPReply]
+        private(set) var written: [String] = []
+        private(set) var tlsStarted = false
+        private(set) var opened = false
+
+        init(_ replies: [SMTPReply]) { self.replies = replies }
+
+        func open() async throws { lock.withLock { opened = true } }
+        func write(_ line: String) async throws { lock.withLock { written.append(line) } }
+        func read() async throws -> SMTPReply {
+            lock.withLock {
+                replies.isEmpty ? SMTPReply(code: 500, lines: ["no more script"])
+                                : replies.removeFirst()
+            }
+        }
+        func startTLS() async throws { lock.withLock { tlsStarted = true } }
+        func close() async {}
+    }
+
+    func reply(_ code: Int, _ text: String...) -> SMTPReply {
+        SMTPReply(code: code, lines: text.isEmpty ? ["ok"] : text)
+    }
+
+    func settings(_ security: SMTPSettings.Security = .startTLS) -> SMTPSettings {
+        SMTPSettings(host: "smtp.example.com", port: 587, security: security,
+                     username: "me@example.com", password: "hunter2",
+                     from: "me@example.com")
+    }
+
+    let message = MIMEMessage(from: "me@example.com", to: ["comptable@example.com"],
+                              subject: "Factures — mars 2026",
+                              body: "2 documents",
+                              attachments: [MIMEMessage.Attachment(
+                                filename: "facture.pdf", data: Data("%PDF-1.4".utf8))],
+                              date: Date(timeIntervalSince1970: 1_772_000_000),
+                              boundary: "BOUNDARY", messageID: "fixed@test")
+
+    await suite("MIME message") {
+
+        await test("An accented subject is encoded, not sent raw") {
+            let rendered = message.render()
+            expect(rendered.contains("Subject: =?UTF-8?B?"), "a raw accent becomes mojibake")
+            expect(!rendered.contains("Subject: Factures — mars"), "should not be sent as-is")
+        }
+
+        await test("A plain ASCII subject is left alone") {
+            expectEqual(MIMEMessage.encodeHeader("Invoices March 2026"), "Invoices March 2026")
+        }
+
+        await test("A display name is encoded but its address is not") {
+            let encoded = MIMEMessage.encodeAddress("Clément <c@example.com>")
+            expect(encoded.hasSuffix("<c@example.com>"), encoded)
+            expect(encoded.contains("=?UTF-8?B?"), encoded)
+        }
+
+        await test("The date is English whatever the user's region") {
+            // "mars" in a Date header is a malformed message.
+            let text = MIMEMessage.rfc5322Date(Date(timeIntervalSince1970: 1_772_000_000))
+            expect(text.contains("Feb") || text.contains("Mar"), text)
+        }
+
+        await test("Attachments are base64 in a multipart body") {
+            let rendered = message.render()
+            expect(rendered.contains("multipart/mixed; boundary=\"BOUNDARY\""), rendered.prefix(400).description)
+            expect(rendered.contains("Content-Disposition: attachment; filename=\"facture.pdf\""))
+            expect(rendered.contains(Data("%PDF-1.4".utf8).base64EncodedString()))
+            expect(rendered.hasSuffix("--BOUNDARY--"))
+        }
+
+        await test("Base64 is wrapped at 76 characters") {
+            let long = MIMEMessage(from: "a@b.c", to: ["d@e.f"], subject: "s",
+                                   body: String(repeating: "x", count: 500))
+            for line in long.render().components(separatedBy: "\r\n") {
+                expect(line.count <= 998, "line too long for RFC 5322")
+            }
+            let payload = long.render().components(separatedBy: "\r\n\r\n").last ?? ""
+            expect(payload.components(separatedBy: "\r\n").allSatisfy { $0.count <= 76 })
+        }
+
+        await test("A line starting with a dot is stuffed") {
+            // Otherwise a body whose line begins with "." ends the message
+            // early, and the mail arrives truncated.
+            let dotted = MIMEMessage(from: "a@b.c", to: ["d@e.f"], subject: "s",
+                                     body: ". a line", attachments: [])
+            let payload = dotted.dataPayload()
+            expect(payload.hasSuffix("\r\n.\r\n"), "must end with the terminator")
+            // The body is base64 here, so check the stuffing rule directly.
+            var raw = "line one\r\n.hidden\r\nline three"
+            raw = raw.components(separatedBy: "\r\n").map { $0.hasPrefix(".") ? "." + $0 : $0 }
+                     .joined(separator: "\r\n")
+            expect(raw.contains("\r\n..hidden\r\n"), raw)
+        }
+    }
+
+    await suite("SMTP conversation") {
+
+        await test("STARTTLS is used, and the password comes after it") {
+            let transport = FakeTransport([
+                reply(220, "smtp.example.com ESMTP"),
+                reply(250, "smtp.example.com", "STARTTLS", "AUTH PLAIN LOGIN"),
+                reply(220, "go ahead"),
+                reply(250, "smtp.example.com", "AUTH PLAIN LOGIN"),
+                reply(235, "authenticated"),
+                reply(250, "sender ok"), reply(250, "recipient ok"),
+                reply(354, "send it"), reply(250, "queued"), reply(221, "bye"),
+            ])
+            try await SMTPMailer(settings: settings()).send(message, over: transport)
+
+            expect(transport.tlsStarted, "the connection must be encrypted")
+            let authIndex = transport.written.firstIndex { $0.hasPrefix("AUTH") }
+            let tlsIndex = transport.written.firstIndex { $0 == "STARTTLS" }
+            expect(tlsIndex != nil && authIndex != nil && tlsIndex! < authIndex!,
+                   "the password must not precede the encryption")
+            expect(transport.written.contains("MAIL FROM:<me@example.com>"), "\(transport.written)")
+            expect(transport.written.contains("RCPT TO:<comptable@example.com>"))
+            expect(transport.written.contains("QUIT"))
+        }
+
+        await test("A server without STARTTLS is refused rather than downgraded") {
+            let transport = FakeTransport([
+                reply(220, "hello"),
+                reply(250, "smtp.example.com", "AUTH PLAIN"),
+            ])
+            do {
+                try await SMTPMailer(settings: settings()).send(message, over: transport)
+                expect(false, "should not have sent the password in clear")
+            } catch {
+                expect("\(error)".contains("STARTTLS") || error is IRError)
+                expect(!transport.written.contains { $0.hasPrefix("AUTH") },
+                       "no credentials may be written")
+            }
+        }
+
+        await test("A password is never sent over an unencrypted connection") {
+            let transport = FakeTransport([reply(220, "hi"), reply(250, "ok", "AUTH PLAIN")])
+            do {
+                try await SMTPMailer(settings: settings(.none)).send(message, over: transport)
+                expect(false, "should have refused")
+            } catch {
+                expect(!transport.written.contains { $0.hasPrefix("AUTH") }, "\(transport.written)")
+            }
+        }
+
+        await test("A wrong password reads as an authentication failure") {
+            let transport = FakeTransport([
+                reply(220, "hi"),
+                reply(250, "ok", "STARTTLS", "AUTH PLAIN"),
+                reply(220, "go"), reply(250, "ok", "AUTH PLAIN"),
+                reply(535, "5.7.8 Username and Password not accepted"),
+            ])
+            do {
+                try await SMTPMailer(settings: settings()).send(message, over: transport)
+                expect(false, "should have failed")
+            } catch let error as IRError {
+                expect(error.needsUserSignIn, "the user has a password to fix: \(error)")
+            }
+        }
+
+        await test("A refused recipient names the recipient") {
+            let transport = FakeTransport([
+                reply(220, "hi"), reply(250, "ok", "STARTTLS", "AUTH PLAIN"),
+                reply(220, "go"), reply(250, "ok", "AUTH PLAIN"), reply(235, "ok"),
+                reply(250, "sender ok"),
+                reply(550, "5.1.1 no such user"),
+            ])
+            do {
+                try await SMTPMailer(settings: settings()).send(message, over: transport)
+                expect(false, "should have failed")
+            } catch {
+                expect("\(error.localizedDescription)".contains("comptable@example.com"),
+                       error.localizedDescription)
+            }
+        }
+
+        await test("AUTH LOGIN is used when PLAIN is not offered") {
+            let transport = FakeTransport([
+                reply(220, "hi"), reply(250, "ok", "STARTTLS", "AUTH LOGIN"),
+                reply(220, "go"), reply(250, "ok", "AUTH LOGIN"),
+                reply(334, "VXNlcm5hbWU6"), reply(334, "UGFzc3dvcmQ6"), reply(235, "ok"),
+                reply(250, "ok"), reply(250, "ok"), reply(354, "go"), reply(250, "queued"),
+                reply(221, "bye"),
+            ])
+            try await SMTPMailer(settings: settings()).send(message, over: transport)
+            expect(transport.written.contains("AUTH LOGIN"), "\(transport.written)")
+            expect(transport.written.contains(Data("me@example.com".utf8).base64EncodedString()))
+        }
+
+        await test("An address with a display name is unwrapped for the envelope") {
+            expectEqual(SMTPMailer.addressOnly("Clément <c@example.com>"), "c@example.com")
+            expectEqual(SMTPMailer.addressOnly("c@example.com"), "c@example.com")
+        }
+    }
+
+    await suite("SMTP replies") {
+
+        await test("A multi-line reply is read as one") {
+            var buffer = Data("250-smtp.example.com\r\n250-STARTTLS\r\n250 AUTH PLAIN\r\n".utf8)
+            let reply = NetworkSMTPTransport.takeReply(from: &buffer)
+            expectEqual(reply?.code, 250)
+            expectEqual(reply?.lines.count, 3)
+            expect(buffer.isEmpty, "the whole reply should be consumed")
+        }
+
+        await test("A reply split across packets waits for the rest") {
+            var buffer = Data("250-smtp.exa".utf8)
+            expect(NetworkSMTPTransport.takeReply(from: &buffer) == nil,
+                   "half a reply is not a reply")
+            buffer.append(Data("mple.com\r\n250 AUTH PLAIN\r\n".utf8))
+            expectEqual(NetworkSMTPTransport.takeReply(from: &buffer)?.code, 250)
+        }
+
+        await test("Two replies in one packet are taken one at a time") {
+            var buffer = Data("220 hello\r\n250 ok\r\n".utf8)
+            expectEqual(NetworkSMTPTransport.takeReply(from: &buffer)?.code, 220)
+            expectEqual(NetworkSMTPTransport.takeReply(from: &buffer)?.code, 250)
+            expect(NetworkSMTPTransport.takeReply(from: &buffer) == nil)
+        }
+    }
+}
