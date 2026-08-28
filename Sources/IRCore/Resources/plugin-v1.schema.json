@@ -405,11 +405,19 @@
         {
           "if": { "properties": { "action": { "const": "extractAll" } }, "required": ["action"] },
           "then": {
-            "required": ["selector", "forEach"],
+            "required": ["forEach"],
+            "oneOf": [{ "required": ["selector"] }, { "required": ["items"] }],
             "properties": {
               "action": {},
               "description": {},
-              "selector": { "$ref": "#/$defs/selector" },
+              "selector": {
+                "$ref": "#/$defs/selector",
+                "description": "Walk elements on the page. Use this or `items`, never both."
+              },
+              "items": {
+                "type": "string",
+                "description": "Walk a JSON list instead, as produced by apiRequest — \"{{invoices}}\". A list of objects exposes {{item.field}}; a list of plain values exposes {{item}}."
+              },
               "fields": {
                 "type": "object",
                 "description": "Per-row extraction, relative to the matched element. Values become {{item.<key>}} inside forEach.",
@@ -576,6 +584,39 @@
         },
 
         {
+          "if": { "properties": { "action": { "const": "apiRequest" } }, "required": ["action"] },
+          "then": {
+            "required": ["url", "assignTo"],
+            "properties": {
+              "action": {},
+              "description": {},
+              "url": {
+                "type": "string",
+                "description": "The endpoint. Called from inside the signed-in page, so it carries the session already established and obeys allowedDomains like everything else — an API connector needs no second set of credentials.",
+                "anyOf": [{ "pattern": "^https://" }, { "pattern": "\\{\\{" }]
+              },
+              "method": {
+                "enum": ["GET", "POST"],
+                "default": "GET",
+                "description": "Reading only. A collector has no business changing anything on a portal."
+              },
+              "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+              "body": {
+                "type": "string",
+                "description": "Request body for POST, after template substitution."
+              },
+              "jsonPath": {
+                "type": "string",
+                "description": "Dotted path into the response, e.g. data.invoices"
+              },
+              "assignTo": { "$ref": "#/$defs/varName" },
+              "timeout": { "$ref": "#/$defs/timeout" }
+            },
+            "additionalProperties": false
+          }
+        },
+
+        {
           "properties": {
             "action": {
               "enum": [
@@ -593,6 +634,7 @@
                 "extract",
                 "extractAll",
                 "extractNetworkResponse",
+                "apiRequest",
                 "downloadPdf",
                 "waitForPdfDownload",
                 "printPdf",

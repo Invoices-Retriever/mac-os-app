@@ -91,6 +91,13 @@ public enum Localization {
     }
 }
 
+/// The same strings, for browser drivers outside this module.
+public func coreString(_ key: String, _ arguments: CVarArg...) -> String {
+    arguments.isEmpty
+        ? Localization.string(key, in: .module)
+        : String(format: Localization.string(key, in: .module), arguments: arguments)
+}
+
 /// User-facing strings that belong to the core rather than to the interface:
 /// error messages, mostly, which the app shows verbatim in an alert.
 func core(_ key: String) -> String {

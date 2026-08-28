@@ -130,6 +130,19 @@ final class FakeBrowserSession: BrowserSession, @unchecked Sendable {
     func printToPDF() async throws -> Data { Data("%PDF-1.4 printed".utf8) }
     func captureScreenshot() async throws -> Data { Data("PNG".utf8) }
 
+    /// Scripted API answers, keyed by URL.
+    var apiResponses: [String: APIResponse] = [:]
+    private(set) var apiCalls: [String] = []
+
+    func requestJSON(url: URL, method: String, headers: [String: String],
+                     body: String?, timeout: Duration) async throws -> APIResponse {
+        apiCalls.append("\(method) \(url.absoluteString)")
+        guard let response = apiResponses[url.absoluteString] else {
+            return APIResponse(status: 404, json: .null, text: "no scripted response")
+        }
+        return response
+    }
+
     func captureDOMOutline() async throws -> String {
         let page = self.page
         let names = Set(page.elements.keys).union(page.attributes.keys).sorted()

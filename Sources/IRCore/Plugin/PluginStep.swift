@@ -27,6 +27,13 @@ public struct PluginStep: Codable, Sendable, Hashable {
     // Verification
     public var expect: Bool?
 
+    // API
+    public var method: String?
+    public var headers: [String: String]?
+    public var body: String?
+    /// Iterate this instead of a selector: a JSON array from `apiRequest`.
+    public var items: String?
+
     // Extraction
     public var attribute: String?
     public var regex: String?
@@ -67,7 +74,9 @@ public struct PluginStep: Codable, Sendable, Hashable {
     /// navigates to is declared in `allowedDomains`.
     public var staticURLTemplates: [String] {
         var out: [String] = []
-        if let url, action == .navigate || action == .downloadPdf { out.append(url) }
+        if let url, action == .navigate || action == .downloadPdf || action == .apiRequest {
+            out.append(url)
+        }
         return out
     }
 
@@ -79,7 +88,8 @@ public struct PluginStep: Codable, Sendable, Hashable {
         case .click: return "click \(selector ?? "")"
         case .type: return "type into \(selector ?? "")"
         case .extract: return "extract \(assignTo ?? "")"
-        case .extractAll: return "extract rows \(selector ?? "")"
+        case .extractAll: return "extract rows \(selector ?? items ?? "")"
+        case .apiRequest: return "\(method ?? "GET") \(url ?? "")"
         default: return action.rawValue
         }
     }
@@ -89,7 +99,7 @@ public enum StepAction: String, Codable, Sendable, CaseIterable, Hashable {
     case navigate, waitForURL, waitForElement, waitForNavigation, waitForNetworkIdle
     case click, type, dropdownSelect, runJs
     case checkElementExists, checkURL
-    case extract, extractAll, extractNetworkResponse
+    case extract, extractAll, extractNetworkResponse, apiRequest
     case downloadPdf, waitForPdfDownload, printPdf, downloadBase64Pdf
     case ifStep = "if"
     case sleep, exposeOption

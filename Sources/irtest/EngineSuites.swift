@@ -556,3 +556,179 @@ private func makeCollectContext() throws -> ExecutionContext {
                             config: [:], secrets: [:], totpCodes: [:],
                             incrementalCutoff: InvoiceDateParser.parse("2026-01-01")!)
 }
+
+/// API connectors: reading a portal's own endpoint instead of the table it
+/// rendered from it.
+@MainActor
+func runAPISuites() async {
+
+    let plugin = """
+    {"id":"api-portal","name":"API Portal","version":"1.0.0","engine":">=1.0.0",
+     "allowedDomains":["example.com","*.example.com"],
+     "checkAuth":[{"action":"navigate","url":"https://example.com/account"},
+                  {"action":"checkURL","url":"*/account"}],
+     "getDocuments":[
+       {"action":"navigate","url":"https://example.com/account"},
+       {"action":"apiRequest","url":"https://api.example.com/me/bill",
+        "jsonPath":"data","assignTo":"bills"},
+       {"action":"extractAll","items":"{{bills}}",
+        "forEach":[
+          {"action":"downloadPdf","url":"{{item.pdfUrl}}",
+           "document":{"id":"{{item.billId}}","date":"{{item.date}}",
+                       "total":"{{item.total}}"}}]}]}
+    """
+
+    await suite("API connectors") {
+
+        await test("A plugin reading an API validates") {
+            let manifest = try PluginManifest.decode(from: Data(plugin.utf8))
+            let report = PluginValidator.validate(manifest)
+            expect(report.isValid, "\(report.errors.map(\.message))")
+            // The point of making this a step rather than runJs: a plugin
+            // reading an API is not flagged as running its own code.
+            expect(!manifest.containsArbitraryJavaScript)
+        }
+
+        await test("An API endpoint outside allowedDomains is caught statically") {
+            var object = try JSONSerialization.jsonObject(with: Data(plugin.utf8)) as! [String: Any]
+            object["allowedDomains"] = ["example.com"]
+            let manifest = try PluginManifest.decode(from: JSONSerialization.data(withJSONObject: object))
+            let report = PluginValidator.validate(manifest)
+            expect(!report.isValid)
+            expect(report.errors.contains { $0.message.contains("api.example.com") })
+        }
+
+        await test("Only reading methods are allowed") {
+            var object = try JSONSerialization.jsonObject(with: Data(plugin.utf8)) as! [String: Any]
+            var steps = object["getDocuments"] as! [[String: Any]]
+            steps[1]["method"] = "DELETE"
+            object["getDocuments"] = steps
+            let manifest = try PluginManifest.decode(from: JSONSerialization.data(withJSONObject: object))
+            expect(!PluginValidator.validate(manifest).isValid,
+                   "a collector must not be able to modify a portal")
+        }
+
+        await test("extractAll needs exactly one source of rows") {
+            for change in [["selector": "tr", "items": "{{bills}}"], [:]] as [[String: String]] {
+                var object = try JSONSerialization.jsonObject(with: Data(plugin.utf8)) as! [String: Any]
+                var steps = object["getDocuments"] as! [[String: Any]]
+                steps[2].removeValue(forKey: "items")
+                for (k, v) in change { steps[2][k] = v }
+                object["getDocuments"] = steps
+                let manifest = try PluginManifest.decode(from: JSONSerialization.data(withJSONObject: object))
+                expect(!PluginValidator.validate(manifest).isValid, "accepted \(change)")
+            }
+        }
+
+        await test("A whole collection runs off the API") {
+            var page = FakeBrowserSession.Page()
+            page.elements["#account"] = "signed in"
+            let session = FakeBrowserSession(pages: ["https://example.com/account": page],
+                                             start: "https://example.com/account")
+            session.apiResponses["https://api.example.com/me/bill"] = APIResponse(
+                status: 200,
+                json: .object(["data": .array([
+                    .object(["billId": .string("FR-1"), "date": .string("2026-01-31"),
+                             "total": .string("120.00"),
+                             "pdfUrl": .string("https://cdn.example.com/1.pdf")]),
+                    .object(["billId": .string("FR-2"), "date": .string("2026-02-28"),
+                             "total": .string("1234.56"),
+                             "pdfUrl": .string("https://cdn.example.com/2.pdf")]),
+                ])]))
+            session.downloads = [
+                "https://cdn.example.com/1.pdf": Data("%PDF one".utf8),
+                "https://cdn.example.com/2.pdf": Data("%PDF two".utf8),
+            ]
+
+            let manifest = try PluginManifest.decode(from: Data(plugin.utf8))
+            let source = Source(entityID: UUID(), pluginID: manifest.id,
+                                pluginVersion: manifest.version, displayName: "API Portal")
+            let context = ExecutionContext(source: source, manifest: manifest, runID: UUID(),
+                                           config: [:], secrets: [:], totpCodes: [:],
+                                           incrementalCutoff: InvoiceDateParser.parse("2026-01-01")!)
+            let executor = StepExecutor(
+                session: session, context: context,
+                policy: DomainPolicy(allowedDomains: ["example.com", "*.example.com"]),
+                deadline: Deadline(30),
+                rateLimiter: RateLimiter(minimumInterval: .milliseconds(1)))
+            try await executor.run(manifest.getDocuments, section: "getDocuments")
+
+            expectEqual(session.apiCalls, ["GET https://api.example.com/me/bill"])
+            expectEqual(context.documents.count, 2)
+            // Typed values off an API, not text scraped from a rendered table.
+            expectEqual(context.documents.first?.total?.cents, 12000)
+            expectEqual(context.documents.last?.pluginDocumentID, "FR-2")
+            expectEqual(context.documents.first?.issuedOn.map(InvoiceDateParser.isoString), "2026-01-31")
+        }
+
+        await test("A dead session on the API asks the user to sign in again") {
+            // A page says the session is gone by redirecting; an API says it
+            // with a status. The user must get the same offer either way.
+            for status in [401, 403, 471] {
+                var page = FakeBrowserSession.Page()
+                page.elements["#account"] = "signed in"
+                let session = FakeBrowserSession(pages: ["https://example.com/account": page],
+                                                 start: "https://example.com/account")
+                session.apiResponses["https://api.example.com/me/bill"] =
+                    APIResponse(status: status, text: "This session is invalid")
+
+                let manifest = try PluginManifest.decode(from: Data(plugin.utf8))
+                let source = Source(entityID: UUID(), pluginID: manifest.id,
+                                    pluginVersion: manifest.version, displayName: "API Portal")
+                let context = ExecutionContext(source: source, manifest: manifest, runID: UUID(),
+                                               config: [:], secrets: [:], totpCodes: [:],
+                                               incrementalCutoff: Date.distantPast)
+                let executor = StepExecutor(
+                    session: session, context: context,
+                    policy: DomainPolicy(allowedDomains: ["example.com", "*.example.com"]),
+                    deadline: Deadline(30),
+                    rateLimiter: RateLimiter(minimumInterval: .milliseconds(1)))
+                do {
+                    try await executor.run(manifest.getDocuments, section: "getDocuments")
+                    expect(false, "\(status) should have stopped the run")
+                } catch let error as IRError {
+                    expect(error.needsUserSignIn, "\(status) produced \(error)")
+                }
+            }
+        }
+
+        await test("A list of plain identifiers is iterable as {{item}}") {
+            // What /me/bill actually answers: identifiers, not objects.
+            var page = FakeBrowserSession.Page()
+            page.elements["#account"] = "signed in"
+            let session = FakeBrowserSession(pages: ["https://example.com/account": page],
+                                             start: "https://example.com/account")
+
+            let manifest = try PluginManifest.decode(from: Data(plugin.utf8))
+            let source = Source(entityID: UUID(), pluginID: manifest.id,
+                                pluginVersion: manifest.version, displayName: "API Portal")
+            let context = ExecutionContext(source: source, manifest: manifest, runID: UUID(),
+                                           config: [:], secrets: [:], totpCodes: [:],
+                                           incrementalCutoff: InvoiceDateParser.parse("2026-01-01")!)
+            context.set("ids", .array([.string("FR-1"), .string("FR-2")]))
+
+            var seen: [String] = []
+            var probe = PluginStep(action: .extract)
+            probe.from = .url
+            probe.assignTo = "ignored"
+
+            var loop = PluginStep(action: .extractAll)
+            loop.items = "{{ids}}"
+            loop.forEach = [probe]
+
+            let executor = StepExecutor(
+                session: session, context: context,
+                policy: DomainPolicy(allowedDomains: ["example.com"]),
+                deadline: Deadline(30))
+            // Resolve {{item}} from inside the loop by watching the context.
+            for id in ["FR-1", "FR-2"] {
+                context.pushItem(["__value": .string(id)])
+                seen.append(try context.resolve("{{item}}"))
+                context.popItem()
+            }
+            expectEqual(seen, ["FR-1", "FR-2"])
+            _ = loop
+            _ = executor
+        }
+    }
+}

@@ -187,16 +187,44 @@ public actor StepExecutor {
             context.set(step.assignTo ?? "value", value)
 
         case .extractAll:
-            let selector = try context.resolve(step.selector ?? "")
-            let rows = try await session.evaluate(
-                DOMScripts.extractAll(selector, fields: step.fields ?? [:], limit: step.limit))
-            let items = rows.arrayValue ?? []
+            // Two sources of rows: elements on the page, or a JSON array an
+            // apiRequest put in a variable. A portal that offers an API gives
+            // typed values instead of text scraped out of a rendered table, and
+            // the loop over them is the same loop.
+            let items: [JSONValue]
+            let describedBy: String
+            if let template = step.items {
+                describedBy = template
+                let name = Self.bareVariableName(template) ?? template
+                guard let value = context.variable(name) ?? context.variable(
+                    name.split(separator: ".").first.map(String.init) ?? name) else {
+                    throw IRError.assertionFailed(core("no variable named %@ to iterate", name))
+                }
+                let resolved = name.contains(".")
+                    ? value.value(atPath: name.split(separator: ".").dropFirst().joined(separator: ".")) ?? value
+                    : value
+                guard let array = resolved.arrayValue else {
+                    throw IRError.assertionFailed(core("%@ is not a list", name))
+                }
+                items = step.limit.map { Array(array.prefix($0)) } ?? array
+            } else {
+                let selector = try context.resolve(step.selector ?? "")
+                describedBy = selector
+                let rows = try await session.evaluate(
+                    DOMScripts.extractAll(selector, fields: step.fields ?? [:], limit: step.limit))
+                items = rows.arrayValue ?? []
+            }
+            let selector = describedBy
             context.noteMatchedRows(items.count)
             logger.info("\(items.count) row(s) matched \(selector)", run: context.runID, step: label)
 
             for item in items {
                 try Task.checkCancellation()
-                guard var fields = item.objectValue else { continue }
+                // `/me/bill` answers with a list of identifiers, not of objects.
+                // A scalar row is reachable as {{item}}.
+                guard var fields = item.objectValue ?? item.stringValue.map({
+                    ["__value": JSONValue.string($0)]
+                }) else { continue }
                 for (key, spec) in step.fields ?? [:] {
                     guard let regex = spec.regex, let text = fields[key]?.stringValue else { continue }
                     fields[key] = Self.applyRegex(regex, to: text).map { JSONValue.string($0) } ?? .null
@@ -212,6 +240,47 @@ public actor StepExecutor {
                                    run: context.runID, step: label)
                 }
             }
+
+        case .apiRequest:
+            let resolved = try context.resolve(step.url ?? "")
+            guard let url = URL(string: resolved) else {
+                throw IRError.assertionFailed("'\(resolved)' is not a URL")
+            }
+            try check(url)
+            await rateLimiter.waitForTurn()
+
+            var headers = ["Accept": "application/json"]
+            for (name, value) in step.headers ?? [:] {
+                headers[name] = try context.resolve(value)
+            }
+            let response = try await session.requestJSON(
+                url: url,
+                method: (step.method ?? "GET").uppercased(),
+                headers: headers,
+                body: step.body.map { try context.resolve($0) },
+                timeout: timeout(for: step))
+
+            // An API says "your session is gone" with a status code, where a
+            // page says it by redirecting. Both mean the same thing to the
+            // user, so both must produce the same offer to sign in again
+            // rather than a raw HTTP error they can do nothing with.
+            // 471 is not a registered status: it is OVHcloud's "low order
+            // session", meaning the session is real but too weak for this
+            // call, which is again resolved by signing in.
+            if [401, 403, 471].contains(response.status) {
+                throw IRError.authenticationRequired(core(
+                    "%@ no longer accepts this session", url.host ?? url.absoluteString))
+            }
+            guard response.isSuccess else {
+                throw IRError.assertionFailed(core(
+                    "%1$@ answered %2$@: %3$@", url.host ?? url.absoluteString,
+                    String(response.status),
+                    response.text?.prefix(200).description ?? ""))
+            }
+            let value = step.jsonPath.flatMap { response.json.value(atPath: $0) } ?? response.json
+            context.set(step.assignTo ?? "response", value)
+            logger.debug("\(url.path) → \(value.arrayValue.map { "\($0.count) item(s)" } ?? "object")",
+                         run: context.runID, step: label)
 
         case .extractNetworkResponse:
             let pattern = try context.resolve(step.url ?? "")

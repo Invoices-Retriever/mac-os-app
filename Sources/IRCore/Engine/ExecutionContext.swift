@@ -147,7 +147,8 @@ public final class ExecutionContext: @unchecked Sendable {
             guard let key = tail else { return nil }
             return totpCodes[key]
         case "item":
-            guard let key = tail else { return nil }
+            // A row from a JSON list of scalars has no fields; {{item}} is it.
+            guard let key = tail else { return currentItem()["__value"]?.stringValue }
             return currentItem()[key]?.stringValue
         case "option":
             guard let key = tail else { return nil }

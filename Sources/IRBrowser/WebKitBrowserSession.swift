@@ -351,6 +351,67 @@ public final class WebKitBrowserSession: NSObject, BrowserSession {
         return png
     }
 
+    /// Calls a JSON endpoint from inside the page.
+    ///
+    /// `callAsyncJavaScript` rather than a URLSession: issued from the document,
+    /// the request carries the session cookies the user just established, and
+    /// the content blocker applies to it exactly as it does to everything else
+    /// the page fetches. An API connector is then simpler than scraping without
+    /// being a second way in.
+    ///
+    /// The script is ours, not a plugin's — `apiRequest` is a declarative step,
+    /// so a plugin reading an API does not have to be flagged as running its
+    /// own JavaScript.
+    public func requestJSON(url: URL, method: String, headers: [String: String],
+                            body: String?, timeout: Duration) async throws -> APIResponse {
+        guard policy.allows(url: url) else {
+            throw IRError.domainNotAllowed(host: url.host ?? url.absoluteString, allowed: policy.patterns)
+        }
+
+        let script = """
+        const response = await fetch(url, {
+            method: method,
+            headers: headers,
+            body: body === null ? undefined : body,
+            credentials: 'include'
+        });
+        const text = await response.text();
+        let parsed = null;
+        try { parsed = JSON.parse(text); } catch (e) { parsed = null; }
+        return {
+            status: response.status,
+            json: parsed,
+            text: parsed === null ? text.slice(0, 4000) : null
+        };
+        """
+
+        let arguments: [String: Any] = [
+            "url": url.absoluteString,
+            "method": method,
+            "headers": headers,
+            "body": body as Any? ?? NSNull(),
+        ]
+
+        do {
+            let result = try await webView.callAsyncJavaScript(
+                script, arguments: arguments, in: nil, contentWorld: .page)
+            let value = JSONValue(any: result)
+            guard let fields = value.objectValue,
+                  let status = fields["status"]?.stringValue.flatMap(Int.init) else {
+                throw IRError.assertionFailed("the API call returned nothing usable")
+            }
+            return APIResponse(status: status,
+                               json: fields["json"] ?? .null,
+                               text: fields["text"]?.stringValue)
+        } catch let error as IRError {
+            throw error
+        } catch {
+            throw IRError.assertionFailed(coreString("could not reach %1$@: %2$@",
+                                               url.host ?? url.absoluteString,
+                                               error.localizedDescription))
+        }
+    }
+
     public func captureDOMOutline() async throws -> String {
         var sections: [String] = []
         if let main = try? await evaluate(DOMScriptsBridge.outline, in: nil).stringValue, !main.isEmpty {

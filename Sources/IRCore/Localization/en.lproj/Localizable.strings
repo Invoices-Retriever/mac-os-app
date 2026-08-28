@@ -86,3 +86,8 @@
 "the two-factor secret stored for '%@' is unusable" = "the two-factor secret stored for '%@' is unusable";
 "%@ secret(s) survived deletion" = "%@ secret(s) survived deletion";
 "%@ row(s) were found but none could be read. The row selectors match; the fields inside them do not." = "%@ row(s) were found but none could be read. The row selectors match; the fields inside them do not.";
+"%1$@ answered %2$@: %3$@" = "%1$@ answered %2$@: %3$@";
+"no variable named %@ to iterate" = "no variable named %@ to iterate";
+"%@ is not a list" = "%@ is not a list";
+"%@ no longer accepts this session" = "%@ no longer accepts this session";
+"could not reach %1$@: %2$@" = "could not reach %1$@: %2$@";

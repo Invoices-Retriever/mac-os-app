@@ -44,6 +44,16 @@ public protocol BrowserSession: AnyObject, Sendable {
     /// failure screenshot so a broken selector can be fixed from the report.
     func captureDOMOutline() async throws -> String
 
+    /// Calls a JSON endpoint from inside the authenticated page.
+    ///
+    /// Deliberately not a separate HTTP client. Issued from the page, the
+    /// request carries the session the user just established, obeys the same
+    /// domain sandbox as everything else, and needs no second set of
+    /// credentials — which is what makes an API connector simpler than scraping
+    /// rather than a parallel way in.
+    func requestJSON(url: URL, method: String, headers: [String: String],
+                     body: String?, timeout: Duration) async throws -> APIResponse
+
     /// Responses observed since the last call, for `extractNetworkResponse`.
     func drainNetworkResponses() async -> [ObservedResponse]
 
@@ -51,6 +61,20 @@ public protocol BrowserSession: AnyObject, Sendable {
     /// this session" means.
     func clearSession() async throws
     func close() async
+}
+
+public struct APIResponse: Sendable {
+    public var status: Int
+    public var json: JSONValue
+    /// Present when the body was not JSON, so a failure can say what came back
+    /// instead of only that parsing failed.
+    public var text: String?
+
+    public init(status: Int, json: JSONValue = .null, text: String? = nil) {
+        self.status = status; self.json = json; self.text = text
+    }
+
+    public var isSuccess: Bool { (200..<300).contains(status) }
 }
 
 public struct ObservedResponse: Sendable, Hashable {

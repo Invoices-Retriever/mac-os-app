@@ -219,8 +219,36 @@ public enum PluginValidator {
                                     message: "extract from an element requires 'selector'"))
             }
         case .extractAll:
-            require(step.selector != nil, "selector")
             require(step.forEach != nil, "forEach")
+            if step.selector == nil && step.items == nil {
+                issues.append(.init(severity: .error, path: path,
+                                    message: "extractAll needs either 'selector' or 'items'",
+                                    hint: "'selector' walks elements on the page; 'items' walks a JSON list an apiRequest produced."))
+            }
+            if step.selector != nil && step.items != nil {
+                issues.append(.init(severity: .error, path: path,
+                                    message: "extractAll takes 'selector' or 'items', not both"))
+            }
+
+        case .apiRequest:
+            require(step.url != nil, "url")
+            require(step.assignTo != nil, "assignTo")
+            if let method = step.method,
+               !["GET", "POST", "PUT", "PATCH", "DELETE"].contains(method.uppercased()) {
+                issues.append(.init(severity: .error, path: path,
+                                    message: "'\(method)' is not an HTTP method"))
+            }
+            // A plugin collecting invoices has no business changing anything on
+            // the portal, and §8.4 says collect nothing but the user's own
+            // documents. Reading is the whole job.
+            if let method = step.method, !["GET", "POST"].contains(method.uppercased()) {
+                issues.append(.init(severity: .error, path: path,
+                                    message: "only GET and POST are allowed; a collector does not modify a portal"))
+            }
+            if let url = step.url, !url.hasPrefix("https://"), !url.contains("{{") {
+                issues.append(.init(severity: .error, path: path,
+                                    message: "apiRequest must use https"))
+            }
         case .extractNetworkResponse:
             require(step.url != nil, "url")
             require(step.assignTo != nil, "assignTo")
