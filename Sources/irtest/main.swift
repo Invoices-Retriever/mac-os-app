@@ -142,11 +142,40 @@ await suite("Domain sandbox") {
     await test("The content rule list blocks by default, then un-blocks") {
         let json = policy.contentRuleListJSON()
         let rules = try JSONSerialization.jsonObject(with: Data(json.utf8)) as! [[String: Any]]
-        expectEqual(rules.count, policy.patterns.count + 1)
+        // Two filters per pattern: one for a port or path, one for a bare origin.
+        expectEqual(rules.count, policy.patterns.count * 2 + 1)
         expectEqual((rules[0]["action"] as! [String: Any])["type"] as? String, "block")
         for rule in rules.dropFirst() {
             expectEqual((rule["action"] as! [String: Any])["type"] as? String, "ignore-previous-rules")
         }
+    }
+    await test("No filter uses alternation, which WebKit cannot compile") {
+        // "Disjunctions are not supported yet" fails the whole list, and a
+        // policy that will not compile means no session can start at all.
+        // Caught in production, not in review.
+        let json = policy.contentRuleListJSON()
+        let rules = try JSONSerialization.jsonObject(with: Data(json.utf8)) as! [[String: Any]]
+        for rule in rules {
+            let filter = (rule["trigger"] as! [String: Any])["url-filter"] as! String
+            expect(!filter.contains("|"), "alternation in '\(filter)'")
+        }
+    }
+    await test("The host anchor still refuses a look-alike") {
+        // What the anchor is for. A filter matching these would let a plugin
+        // carry the user's session to an attacker's host.
+        for filter in DomainPolicy.urlFilters(for: "ovh.com") {
+            let regex = try NSRegularExpression(pattern: filter)
+            func matches(_ url: String) -> Bool {
+                regex.firstMatch(in: url, range: NSRange(location: 0, length: (url as NSString).length)) != nil
+            }
+            expect(!matches("https://ovh.com.evil.example.com/"), "\(filter) matched a suffix host")
+            expect(!matches("https://ovh.com@evil.example.com/"), "\(filter) matched userinfo")
+            expect(!matches("https://evil.example.com/?x=https://ovh.com/"), "\(filter) matched a query")
+        }
+        let withPath = try NSRegularExpression(pattern: DomainPolicy.urlFilters(for: "ovh.com")[0])
+        let url = "https://ovh.com/manager"
+        expect(withPath.firstMatch(in: url, range: NSRange(location: 0, length: (url as NSString).length)) != nil,
+               "the real host stopped matching")
     }
 }
 

@@ -12,6 +12,7 @@
 "A local model endpoint, or an API" = "A local model endpoint, or an API";
 "Add" = "Add";
 "Add a supplier from the catalogue to start collecting invoices automatically." = "Add a supplier from the catalogue to start collecting invoices automatically.";
+"Add and sign in" = "Add and sign in";
 "Add folder…" = "Add folder…";
 "After a successful run, only documents newer than the last success are fetched." = "After a successful run, only documents newer than the last success are fetched.";
 "Already up to date." = "Already up to date.";

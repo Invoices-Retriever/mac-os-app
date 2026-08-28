@@ -2,6 +2,7 @@ import Foundation
 import AppKit
 import IRCore
 import IRBrowser
+import WebKit
 
 /// `irctl` — the plugin author's tool.
 ///
@@ -32,6 +33,8 @@ struct IRCTL {
                 try await buildIndex(Array(arguments.dropFirst()))
             case "extract":
                 try await extract(Array(arguments.dropFirst()))
+            case "sandbox":
+                try await sandbox(Array(arguments.dropFirst()))
             case "catalog":
                 try await catalog(Array(arguments.dropFirst()))
             case "keygen":
@@ -60,6 +63,7 @@ struct IRCTL {
           irctl run <file.json> [options]           Execute a plugin against the real portal
           irctl extract <file.pdf>                  Show what the metadata extractor reads
           irctl index <directory> [--key <file>]    Build (and optionally sign) a plugin index
+          irctl sandbox <file.json>                 Compile the plugin's domain sandbox for real
           irctl catalog [--url <index.json>]        Fetch and verify the published index
           irctl keygen                              Generate a signing key pair for the index
 
@@ -262,6 +266,55 @@ struct IRCTL {
             throw error
         }
         await session.close()
+    }
+
+    // MARK: - sandbox
+
+    /// Compiles `allowedDomains` into the content-blocker rules WebKit will
+    /// actually be given, and reports what they let through.
+    ///
+    /// Worth its own command because the failure mode is total and silent
+    /// until run time: a rule list WebKit cannot compile means no session
+    /// starts at all, and the message it gives back is "WKErrorDomain error 6".
+    static func sandbox(_ arguments: [String]) async throws {
+        guard let path = arguments.first, !path.hasPrefix("--") else {
+            throw IRError.invalidPlugin("usage: irctl sandbox <file.json>")
+        }
+        let manifest = try PluginManifest.decode(from: Data(contentsOf: URL(fileURLWithPath: path)))
+        let policy = manifest.domainPolicy
+
+        print("→ \(manifest.name): \(manifest.allowedDomains.joined(separator: ", "))")
+        for pattern in policy.patterns {
+            for filter in DomainPolicy.urlFilters(for: pattern) {
+                print("   \(filter)")
+            }
+        }
+
+        let json = policy.contentRuleListJSON()
+        do {
+            _ = try await WKContentRuleListStore.default()?
+                .compileContentRuleList(forIdentifier: "irctl-\(UUID().uuidString)",
+                                        encodedContentRuleList: json)
+            print("✓ WebKit compiled the sandbox")
+        } catch {
+            let nsError = error as NSError
+            print("✗ WebKit refused it: \(nsError.domain) \(nsError.code)")
+            print("  Content blockers accept only a subset of regular expressions —")
+            print("  alternation is not in it. Check the filters above.")
+            throw IRError.invalidPlugin("the domain sandbox does not compile")
+        }
+
+        // A quick sanity check on what the policy admits, which is easier to
+        // read than the regexes.
+        let samples = manifest.allowedDomains.compactMap { pattern -> String? in
+            pattern.hasPrefix("*.") ? "https://www." + pattern.dropFirst(2) + "/x" : "https://" + pattern + "/x"
+        } + ["https://\(manifest.allowedDomains[0]).evil.example.com/",
+             "https://evil.example.com/"]
+        print("\nWhat it admits:")
+        for sample in samples {
+            guard let url = URL(string: sample) else { continue }
+            print("  \(policy.allows(url: url) ? "allow " : "block ") \(sample)")
+        }
     }
 
     // MARK: - catalog

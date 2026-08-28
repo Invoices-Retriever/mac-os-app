@@ -21,12 +21,15 @@ struct AddSourceSheet: View {
     private var manifest: PluginManifest { entry.manifest }
     private var schema: [String: ConfigField] { manifest.configSchema ?? [:] }
 
+    /// The labels of the fields still to fill in — the labels, not the keys.
+    /// "Manque encore : customerID, password" asks the user to work out which
+    /// box that is.
     private var missingRequired: [String] {
         schema.filter { key, field in
             guard field.isRequired else { return false }
             if field.isSecret { return !rememberCredentials ? false : (secrets[key]?.isEmpty ?? true) }
             return config[key]?.isEmpty ?? true
-        }.map(\.key).sorted()
+        }.map(\.value.label).sorted()
     }
 
     var body: some View {
@@ -86,13 +89,14 @@ struct AddSourceSheet: View {
                 }
                 Spacer()
                 Button(t("Cancel")) { dismiss() }
-                Button(signInNow ? "Add and sign in" : "Add") { add() }
+                Button(signInNow ? t("Add and sign in") : t("Add")) { add() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(!missingRequired.isEmpty || isWorking)
             }
             .padding()
         }
         .frame(width: 580, height: 640)
+        .onAppear(perform: applyDeclaredDefaults)
         .overlay {
             if isWorking {
                 ProgressView("Opening \(manifest.name)…")
@@ -139,6 +143,17 @@ struct AddSourceSheet: View {
 
     private func configBinding(_ key: String) -> Binding<String> {
         Binding(get: { config[key] ?? "" }, set: { config[key] = $0 })
+    }
+
+    /// Seeds the form from the plugin's own `default` values. Without this a
+    /// required field with a perfectly good default arrives empty and the Add
+    /// button stays disabled on a question the plugin already answered.
+    private func applyDeclaredDefaults() {
+        for (key, field) in schema where !field.isSecret {
+            guard config[key]?.isEmpty ?? true,
+                  let value = field.defaultValue?.stringValue else { continue }
+            config[key] = value
+        }
     }
 
     private func add() {

@@ -12,6 +12,7 @@
 "A local model endpoint, or an API" = "Un modèle local, ou une API";
 "Add" = "Ajouter";
 "Add a supplier from the catalogue to start collecting invoices automatically." = "Ajoutez un fournisseur depuis le catalogue pour commencer à collecter vos factures automatiquement.";
+"Add and sign in" = "Ajouter et se connecter";
 "Add folder…" = "Ajouter un dossier…";
 "After a successful run, only documents newer than the last success are fetched." = "Après une exécution réussie, seuls les documents postérieurs au dernier succès sont récupérés.";
 "Already up to date." = "Déjà à jour.";
