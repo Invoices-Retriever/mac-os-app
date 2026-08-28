@@ -36,13 +36,6 @@ struct AddSourceSheet: View {
         VStack(spacing: 0) {
             Form {
                 Section {
-                    TextField(t("Name this source"), text: $displayName,
-                              prompt: Text(manifest.name))
-                    Text(t("Give it a name you will recognise — “OVH — main account” — especially if you have several accounts with the same supplier."))
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-
-                Section {
                     // The supplier, shown as itself. Someone halfway through
                     // adding three portals needs to know which one this sheet
                     // is about without re-reading the title.
@@ -62,6 +55,13 @@ struct AddSourceSheet: View {
                     .padding(.vertical, 4)
                 }
 
+                Section {
+                    TextField(t("Name this source"), text: $displayName,
+                              prompt: Text(manifest.name))
+                    Text(t("Give it a name you will recognise — “OVH — main account” — especially if you have several accounts with the same supplier."))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+
                 Section(t("What this plugin can do")) {
                     Label(entry.capabilitySummary, systemImage: "network.badge.shield.half.filled")
                         .font(.callout)
@@ -69,14 +69,6 @@ struct AddSourceSheet: View {
                         Label(warning, systemImage: "exclamationmark.triangle.fill")
                             .font(.callout)
                             .foregroundStyle(.orange)
-                    }
-                }
-
-                if !schema.isEmpty {
-                    Section(manifest.name) {
-                        ForEach(schema.keys.sorted(), id: \.self) { key in
-                            if let field = schema[key] { row(key: key, field: field) }
-                        }
                     }
                 }
 
@@ -97,6 +89,16 @@ struct AddSourceSheet: View {
                             Label(hint, systemImage: "exclamationmark.triangle")
                                 .font(.callout)
                                 .foregroundStyle(.orange)
+                        }
+                    }
+                }
+
+                if !schema.isEmpty {
+                    // Not the supplier's name a third time: what this section
+                    // wants from the user.
+                    Section(t("What this source needs from you")) {
+                        ForEach(schema.keys.sorted(), id: \.self) { key in
+                            if let field = schema[key] { row(key: key, field: field) }
                         }
                     }
                 }
@@ -143,7 +145,7 @@ struct AddSourceSheet: View {
             }
             .padding()
         }
-        .frame(width: 580, height: 640)
+        .frame(width: 620, height: 720)
         .onAppear(perform: applyDeclaredDefaults)
         .overlay {
             if isWorking {
