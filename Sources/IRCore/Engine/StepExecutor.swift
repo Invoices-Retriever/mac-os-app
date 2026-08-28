@@ -191,6 +191,7 @@ public actor StepExecutor {
             let rows = try await session.evaluate(
                 DOMScripts.extractAll(selector, fields: step.fields ?? [:], limit: step.limit))
             let items = rows.arrayValue ?? []
+            context.noteMatchedRows(items.count)
             logger.info("\(items.count) row(s) matched \(selector)", run: context.runID, step: label)
 
             for item in items {

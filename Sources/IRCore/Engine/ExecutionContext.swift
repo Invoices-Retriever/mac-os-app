@@ -23,6 +23,11 @@ public final class ExecutionContext: @unchecked Sendable {
     /// Documents this run has produced, in order.
     public private(set) var documents: [CollectedDocument] = []
 
+    /// Rows `extractAll` matched. A run that matched rows and produced no
+    /// document has found the list and failed to read it — a different and much
+    /// more actionable outcome than finding nothing at all.
+    public private(set) var matchedRows = 0
+
     /// Everything older than this has already been collected (F2.5).
     public let incrementalCutoff: Date
 
@@ -78,6 +83,11 @@ public final class ExecutionContext: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         exposedOptions.removeAll { $0.key == option.key }
         exposedOptions.append(option)
+    }
+
+    public func noteMatchedRows(_ count: Int) {
+        lock.lock(); defer { lock.unlock() }
+        matchedRows += count
     }
 
     public func addDocument(_ document: CollectedDocument) {

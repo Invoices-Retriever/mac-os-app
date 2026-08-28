@@ -85,3 +85,4 @@
 "Interrupted when the application quit" = "Interrompu à la fermeture de l'application";
 "the two-factor secret stored for '%@' is unusable" = "le secret de double authentification enregistré pour « %@ » est inutilisable";
 "%@ secret(s) survived deletion" = "%@ secret(s) ont survécu à la suppression";
+"%@ row(s) were found but none could be read. The row selectors match; the fields inside them do not." = "%@ ligne(s) trouvée(s), aucune lisible. Le sélecteur de ligne correspond ; les champs qu'elles contiennent, non.";

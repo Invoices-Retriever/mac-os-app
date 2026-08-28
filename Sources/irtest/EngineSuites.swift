@@ -495,3 +495,64 @@ func runFrameSuites() async {
         }
     }
 }
+
+/// What a run reports when it half-worked.
+@MainActor
+func runOutcomeSuites() async {
+
+    await suite("Run outcomes") {
+        await test("Matching rows and reading none of them is not a success") {
+            // Reported as a green run collecting nothing: the plugin found the
+            // invoice list and could not read a single row, which is the most
+            // informative failure there is, and it was being called success.
+            var listing = FakeBrowserSession.Page()
+            listing.elements["#billing-table"] = "Invoices"
+            listing.rows = [
+                ["number": "F-001", "date": "31/01/2026", "total": "10,00 €"],
+                ["number": "F-002", "date": "28/02/2026", "total": "20,00 €"],
+            ]
+            let session = FakeBrowserSession(pages: ["https://example.com/account": listing])
+
+            // The plugin asks for a link the rows do not contain.
+            let manifest = try decodeGoodPlugin()
+            let context = try makeCollectContext()
+            let executor = StepExecutor(session: session, context: context,
+                                        policy: manifest.domainPolicy,
+                                        deadline: Deadline(30),
+                                        rateLimiter: RateLimiter(minimumInterval: .milliseconds(1)))
+            try await executor.run(manifest.getDocuments, section: "getDocuments")
+
+            expectEqual(context.matchedRows, 2)
+            expect(context.documents.isEmpty, "the rows should not have produced documents")
+        }
+
+        await test("Rows that produce documents leave the count alone") {
+            var listing = FakeBrowserSession.Page()
+            listing.elements["#billing-table"] = "Invoices"
+            listing.rows = [["number": "F-001", "date": "31/01/2026", "total": "10,00 €",
+                             "link": "https://example.com/pdf/F-001"]]
+            let session = FakeBrowserSession(pages: ["https://example.com/account": listing])
+            session.downloads = ["https://example.com/pdf/F-001": Data("%PDF".utf8)]
+
+            let manifest = try decodeGoodPlugin()
+            let context = try makeCollectContext()
+            let executor = StepExecutor(session: session, context: context,
+                                        policy: manifest.domainPolicy,
+                                        deadline: Deadline(30),
+                                        rateLimiter: RateLimiter(minimumInterval: .milliseconds(1)))
+            try await executor.run(manifest.getDocuments, section: "getDocuments")
+
+            expectEqual(context.matchedRows, 1)
+            expectEqual(context.documents.count, 1)
+        }
+    }
+}
+
+private func makeCollectContext() throws -> ExecutionContext {
+    let manifest = try decodeGoodPlugin()
+    let source = Source(entityID: UUID(), pluginID: manifest.id,
+                        pluginVersion: manifest.version, displayName: "Example")
+    return ExecutionContext(source: source, manifest: manifest, runID: UUID(),
+                            config: [:], secrets: [:], totpCodes: [:],
+                            incrementalCutoff: InvoiceDateParser.parse("2026-01-01")!)
+}

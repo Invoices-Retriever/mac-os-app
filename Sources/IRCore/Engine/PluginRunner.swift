@@ -142,6 +142,24 @@ public struct PluginRunner: Sendable {
             case .collect:
                 await created.setVisible(false)
                 try await executor.run(manifest.getDocuments, section: "getDocuments")
+
+                // Matching rows and collecting nothing from them is not a
+                // success. It is the most informative failure there is — the
+                // plugin found the list and could not read it — and reporting
+                // it as a success hides that, and skips the diagnostic that
+                // would fix it.
+                if context.documents.isEmpty && context.matchedRows > 0 {
+                    let outline = try? await created.captureDOMOutline()
+                    return Outcome(
+                        status: .partial, documents: [],
+                        exposedOptions: context.exposedOptions,
+                        error: IRError.assertionFailed(core(
+                            "%@ row(s) were found but none could be read. The row selectors match; the fields inside them do not.",
+                            String(context.matchedRows))),
+                        screenshot: try? await created.captureScreenshot(),
+                        outline: outline)
+                }
+
                 return Outcome(status: .succeeded, documents: context.documents,
                                exposedOptions: context.exposedOptions, error: nil)
             }

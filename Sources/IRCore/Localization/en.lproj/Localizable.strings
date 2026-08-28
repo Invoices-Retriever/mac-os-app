@@ -85,3 +85,4 @@
 "Interrupted when the application quit" = "Interrupted when the application quit";
 "the two-factor secret stored for '%@' is unusable" = "the two-factor secret stored for '%@' is unusable";
 "%@ secret(s) survived deletion" = "%@ secret(s) survived deletion";
+"%@ row(s) were found but none could be read. The row selectors match; the fields inside them do not." = "%@ row(s) were found but none could be read. The row selectors match; the fields inside them do not.";
