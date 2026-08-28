@@ -1,0 +1,350 @@
+import Foundation
+import IRCore
+
+private func makeContext(config: [String: String] = [:],
+                         secrets: [String: String] = [:],
+                         totp: [String: String] = [:],
+                         options: [String: [String]] = [:]) throws -> ExecutionContext {
+    let manifest = try decodeGoodPlugin()
+    var source = Source(entityID: UUID(), pluginID: manifest.id,
+                        pluginVersion: manifest.version, displayName: "Example")
+    source.options = options
+    return ExecutionContext(source: source, manifest: manifest, runID: UUID(),
+                            config: config, secrets: secrets, totpCodes: totp,
+                            incrementalCutoff: InvoiceDateParser.parse("2026-01-01")!)
+}
+
+@MainActor
+func runEngineSuites() async {
+
+    await suite("Template resolution") {
+        await test("Namespaced references resolve") {
+            let context = try makeContext(config: ["username": "cust-42"],
+                                          secrets: ["password": "hunter2"],
+                                          totp: ["mfa": "123456"],
+                                          options: ["account": ["A1"]])
+            expectEqual(try context.resolve("{{config.username}}"), "cust-42")
+            expectEqual(try context.resolve("{{secret.password}}"), "hunter2")
+            expectEqual(try context.resolve("{{totp.mfa}}"), "123456")
+            expectEqual(try context.resolve("{{option.account}}"), "A1")
+            expectEqual(try context.resolve("{{source.name}}"), "Example")
+        }
+        await test("config falls through to secrets, so a contributor writing either works") {
+            let context = try makeContext(secrets: ["password": "hunter2"])
+            expectEqual(try context.resolve("{{config.password}}"), "hunter2")
+        }
+        await test("Variables set by earlier steps resolve, bare or namespaced") {
+            let context = try makeContext()
+            context.set("invoiceNumber", .string("F-2026-001"))
+            expectEqual(try context.resolve("{{invoiceNumber}}"), "F-2026-001")
+            expectEqual(try context.resolve("{{vars.invoiceNumber}}"), "F-2026-001")
+        }
+        await test("A path into an object variable resolves") {
+            let context = try makeContext()
+            context.set("response", .object(["data": .object(["total": .number(4200)])]))
+            expectEqual(try context.resolve("{{response.data.total}}"), "4200")
+        }
+        await test("forEach items resolve, and pop cleanly") {
+            let context = try makeContext()
+            context.pushItem(["number": .string("A-1")])
+            expectEqual(try context.resolve("{{item.number}}"), "A-1")
+            context.popItem()
+            await expectThrows { _ = try context.resolve("{{item.number}}") }
+        }
+        await test("Date helpers resolve") {
+            let context = try makeContext()
+            expectEqual(try context.resolve("{{cutoff.year}}"), "2026")
+            expectEqual(try context.resolve("{{cutoff.date}}"), "2026-01-01")
+        }
+        await test("An unknown reference throws instead of becoming an empty string") {
+            let context = try makeContext()
+            await expectThrows { _ = try context.resolve("{{config.nope}}") }
+        }
+        await test("Interpolation happens inside a larger string") {
+            let context = try makeContext(config: ["username": "42"])
+            expectEqual(try context.resolve("https://example.com/u/{{config.username}}/bills"),
+                        "https://example.com/u/42/bills")
+        }
+        await test("A string with no braces is returned untouched") {
+            let context = try makeContext()
+            expectEqual(try context.resolve("https://example.com"), "https://example.com")
+        }
+    }
+
+    await suite("Pattern matching") {
+        await test("A pattern without a wildcard is a substring match") {
+            expect(StepExecutor.matches(pattern: "/account", value: "https://example.com/account/bills"))
+            expect(!StepExecutor.matches(pattern: "/admin", value: "https://example.com/account"))
+        }
+        await test("A wildcard matches any run of characters, anchored at both ends") {
+            expect(StepExecutor.matches(pattern: "https://example.com/*/bills",
+                                        value: "https://example.com/42/bills"))
+            expect(!StepExecutor.matches(pattern: "https://example.com/*/bills",
+                                         value: "https://other.com/42/bills"))
+        }
+        await test("Regular expression metacharacters in a pattern are literal") {
+            expect(StepExecutor.matches(pattern: "a.b", value: "https://x/a.b"))
+            expect(!StepExecutor.matches(pattern: "https://x/a.b", value: "https://x/axb"))
+        }
+        await test("Capture group 1 wins when the contributor provided one") {
+            expectEqual(StepExecutor.applyRegex("Facture n° ([A-Z0-9-]+)", to: "Facture n° FR-2026-14"),
+                        "FR-2026-14")
+            expectEqual(StepExecutor.applyRegex("[0-9]{4}", to: "ref 2026 x"), "2026")
+        }
+    }
+
+    await suite("Step execution") {
+        /// The whole of `getDocuments` against a scripted portal: this is the
+        /// acceptance test for the interpreter.
+        await test("A full getDocuments run collects every row") {
+            var listing = FakeBrowserSession.Page()
+            listing.elements["#billing-table"] = "Invoices"
+            listing.rows = [
+                ["number": "F-001", "date": "31/01/2026", "total": "120,00 €",
+                 "link": "https://example.com/pdf/F-001"],
+                ["number": "F-002", "date": "28/02/2026", "total": "1 234,56 €",
+                 "link": "https://example.com/pdf/F-002"],
+            ]
+            let session = FakeBrowserSession(pages: ["https://example.com/account": listing])
+            session.downloads = [
+                "https://example.com/pdf/F-001": Data("%PDF one".utf8),
+                "https://example.com/pdf/F-002": Data("%PDF two".utf8),
+            ]
+
+            let manifest = try decodeGoodPlugin()
+            let context = try makeContext()
+            let executor = StepExecutor(session: session, context: context,
+                                        policy: manifest.domainPolicy,
+                                        deadline: Date().addingTimeInterval(30),
+                                        rateLimiter: RateLimiter(minimumInterval: .milliseconds(1)))
+            try await executor.run(manifest.getDocuments, section: "getDocuments")
+
+            expectEqual(context.documents.count, 2)
+            expectEqual(context.documents.first?.pluginDocumentID, "F-001")
+            expectEqual(context.documents.first?.total?.cents, 12000)
+            expectEqual(context.documents.last?.total?.cents, 123456)
+            expectEqual(context.documents.last?.issuedOn.map(InvoiceDateParser.isoString), "2026-02-28")
+            expectEqual(context.documents.first?.issuer, "Example Portal")
+        }
+
+        await test("A row that fails does not cost the other rows") {
+            var listing = FakeBrowserSession.Page()
+            listing.elements["#billing-table"] = "Invoices"
+            listing.rows = [
+                ["number": "F-001", "date": "31/01/2026", "total": "10,00 €",
+                 "link": "https://example.com/pdf/F-001"],
+                ["number": "F-BAD", "date": "31/01/2026", "total": "10,00 €",
+                 "link": "https://example.com/pdf/missing"],
+                ["number": "F-003", "date": "31/03/2026", "total": "30,00 €",
+                 "link": "https://example.com/pdf/F-003"],
+            ]
+            let session = FakeBrowserSession(pages: ["https://example.com/account": listing])
+            session.downloads = [
+                "https://example.com/pdf/F-001": Data("%PDF one".utf8),
+                "https://example.com/pdf/F-003": Data("%PDF three".utf8),
+            ]
+
+            let manifest = try decodeGoodPlugin()
+            let context = try makeContext()
+            let executor = StepExecutor(session: session, context: context,
+                                        policy: manifest.domainPolicy,
+                                        deadline: Date().addingTimeInterval(30),
+                                        rateLimiter: RateLimiter(minimumInterval: .milliseconds(1)))
+            try await executor.run(manifest.getDocuments, section: "getDocuments")
+            expectEqual(context.documents.count, 2)
+        }
+
+        await test("The engine refuses a navigation outside the sandbox even if the URL is built at runtime") {
+            let session = FakeBrowserSession(pages: [
+                "https://example.com/account": FakeBrowserSession.Page(),
+                "https://exfiltrate.example.net/steal": FakeBrowserSession.Page(),
+            ])
+            let context = try makeContext()
+            context.set("target", .string("https://exfiltrate.example.net/steal"))
+
+            var step = PluginStep(action: .navigate)
+            step.url = "{{target}}"
+
+            let executor = StepExecutor(session: session, context: context,
+                                        policy: DomainPolicy(allowedDomains: ["example.com"]),
+                                        deadline: Date().addingTimeInterval(30),
+                                        rateLimiter: RateLimiter(minimumInterval: .milliseconds(1)))
+            await expectThrows { try await executor.run([step], section: "test") }
+            expect(session.navigationLog.isEmpty, "no navigation should have been attempted")
+        }
+
+        await test("checkElementExists fails when the element is absent") {
+            let session = FakeBrowserSession(pages: ["https://example.com/account": FakeBrowserSession.Page()],
+                                             start: "https://example.com/account")
+            let context = try makeContext()
+            var step = PluginStep(action: .checkElementExists)
+            step.selector = "#billing-table"
+            step.timeout = 200
+
+            let executor = StepExecutor(session: session, context: context,
+                                        policy: DomainPolicy(allowedDomains: ["example.com"]),
+                                        deadline: Date().addingTimeInterval(30))
+            await expectThrows { try await executor.run([step], section: "checkAuth") }
+        }
+
+        await test("if / else takes the right branch") {
+            var page = FakeBrowserSession.Page()
+            page.elements[".cookie-banner"] = "We use cookies"
+            page.elements[".accept"] = "Accept"
+            let session = FakeBrowserSession(pages: ["https://example.com/account": page],
+                                             start: "https://example.com/account")
+            let context = try makeContext()
+
+            var extractStep = PluginStep(action: .extract)
+            extractStep.selector = ".cookie-banner"
+            extractStep.assignTo = "banner"
+
+            var branch = PluginStep(action: .ifStep)
+            branch.condition = .elementExists(".cookie-banner")
+            branch.then = [extractStep]
+
+            var elseStep = PluginStep(action: .extract)
+            elseStep.selector = ".missing"
+            elseStep.assignTo = "shouldNotHappen"
+            branch.else = [elseStep]
+
+            let executor = StepExecutor(session: session, context: context,
+                                        policy: DomainPolicy(allowedDomains: ["example.com"]),
+                                        deadline: Date().addingTimeInterval(30))
+            try await executor.run([branch], section: "test")
+            expectEqual(context.variable("banner")?.stringValue, "We use cookies")
+            expect(context.variable("shouldNotHappen") == nil)
+        }
+
+        await test("An optional click on a missing element is not an error") {
+            let session = FakeBrowserSession(pages: ["https://example.com/account": FakeBrowserSession.Page()],
+                                             start: "https://example.com/account")
+            let context = try makeContext()
+            var step = PluginStep(action: .click)
+            step.selector = ".cookie-accept"
+            step.optional = true
+            step.timeout = 200
+
+            let executor = StepExecutor(session: session, context: context,
+                                        policy: DomainPolicy(allowedDomains: ["example.com"]),
+                                        deadline: Date().addingTimeInterval(30),
+                                        rateLimiter: RateLimiter(minimumInterval: .milliseconds(1)))
+            try await executor.run([step], section: "test")   // must not throw
+        }
+
+        await test("extract with a regex narrows the captured value") {
+            var page = FakeBrowserSession.Page()
+            page.elements["h1"] = "Facture n° FR-2026-0042 du 31 mars 2026"
+            let session = FakeBrowserSession(pages: ["https://example.com/account": page],
+                                             start: "https://example.com/account")
+            let context = try makeContext()
+
+            var step = PluginStep(action: .extract)
+            step.selector = "h1"
+            step.regex = "n° ([A-Z0-9-]+)"
+            step.assignTo = "number"
+
+            let executor = StepExecutor(session: session, context: context,
+                                        policy: DomainPolicy(allowedDomains: ["example.com"]),
+                                        deadline: Date().addingTimeInterval(30))
+            try await executor.run([step], section: "test")
+            expectEqual(context.variable("number")?.stringValue, "FR-2026-0042")
+        }
+
+        await test("extractNetworkResponse reads a JSON body the page fetched") {
+            let session = FakeBrowserSession(pages: ["https://example.com/account": FakeBrowserSession.Page()],
+                                             start: "https://example.com/account")
+            session.responses = [ObservedResponse(
+                url: URL(string: "https://api.example.com/v1/invoices")!,
+                statusCode: 200, mimeType: "application/json",
+                body: Data(#"{"data":{"invoices":[{"id":"F-9"}]}}"#.utf8))]
+
+            let context = try makeContext()
+            var step = PluginStep(action: .extractNetworkResponse)
+            step.url = "*/v1/invoices"
+            step.jsonPath = "data.invoices"
+            step.assignTo = "invoices"
+            step.timeout = 1000
+
+            let executor = StepExecutor(session: session, context: context,
+                                        policy: DomainPolicy(allowedDomains: ["example.com", "*.example.com"]),
+                                        deadline: Date().addingTimeInterval(30))
+            try await executor.run([step], section: "test")
+            expectEqual(context.variable("invoices")?.arrayValue?.count, 1)
+        }
+
+        await test("A document with an empty id is refused rather than filed under nothing") {
+            let session = FakeBrowserSession(pages: ["https://example.com/account": FakeBrowserSession.Page()],
+                                             start: "https://example.com/account")
+            let context = try makeContext()
+            context.set("blank", .string(""))
+
+            var step = PluginStep(action: .printPdf)
+            var descriptor = DocumentDescriptor(id: "{{blank}}", date: "2026-01-01")
+            descriptor.total = "10,00 €"
+            step.document = descriptor
+
+            let executor = StepExecutor(session: session, context: context,
+                                        policy: DomainPolicy(allowedDomains: ["example.com"]),
+                                        deadline: Date().addingTimeInterval(30))
+            await expectThrows { try await executor.run([step], section: "test") }
+        }
+
+        await test("The run budget stops a plugin that would otherwise loop") {
+            let session = FakeBrowserSession(pages: ["https://example.com/account": FakeBrowserSession.Page()])
+            let context = try makeContext()
+            var step = PluginStep(action: .sleep)
+            step.ms = 50
+
+            let executor = StepExecutor(session: session, context: context,
+                                        policy: DomainPolicy(allowedDomains: ["example.com"]),
+                                        deadline: Date().addingTimeInterval(-1))
+            await expectThrows { try await executor.run([step], section: "test") }
+        }
+    }
+
+    await suite("Retry policy") {
+        await test("An authentication failure is never retried") {
+            expect(!IRError.authenticationFailed("x").isRetryable)
+            expect(!IRError.authenticationRequired("x").isRetryable)
+            expect(!IRError.blockedByPortal("captcha").isRetryable)
+            expect(!IRError.domainNotAllowed(host: "x", allowed: []).isRetryable)
+        }
+        await test("A timeout is retryable") {
+            expect(IRError.stepTimedOut(action: "click", milliseconds: 1000).isRetryable)
+            expect(IRError.elementNotFound(selector: ".x").isRetryable)
+        }
+        await test("Sign-in errors are distinguished from ordinary failures") {
+            expect(IRError.authenticationRequired("x").needsUserSignIn)
+            expect(!IRError.stepTimedOut(action: "x", milliseconds: 1).needsUserSignIn)
+        }
+    }
+
+    await suite("Incremental collection") {
+        await test("A source that has never succeeded looks back by its window") {
+            var source = Source(entityID: UUID(), pluginID: "x", pluginVersion: "1.0.0", displayName: "X")
+            source.lookbackDays = 30
+            let now = Date()
+            let cutoff = source.incrementalCutoff(now: now)
+            expect(abs(now.timeIntervalSince(cutoff) - 30 * 86_400) < 60)
+        }
+        await test("A source that has succeeded re-checks a week of overlap") {
+            var source = Source(entityID: UUID(), pluginID: "x", pluginVersion: "1.0.0", displayName: "X")
+            source.lastSuccessAt = InvoiceDateParser.parse("2026-03-31")
+            let cutoff = source.incrementalCutoff()
+            expectEqual(InvoiceDateParser.isoString(cutoff), "2026-03-24")
+        }
+    }
+
+    await suite("Schedules") {
+        await test("A manual schedule never fires by itself") {
+            expect(Schedule.manual.nextDate(after: Date()) == nil)
+            expect(!Schedule.manual.isAutomatic)
+        }
+        await test("A monthly schedule produces a date in the future") {
+            let next = Schedule.monthly(day: 5, hour: 9).nextDate(after: Date())
+            expect(next != nil)
+            expect(next! > Date())
+        }
+    }
+}

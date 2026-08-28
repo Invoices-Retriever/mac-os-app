@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- §8.3: distribution is outside the Mac App Store. The App Store sandbox
+         cannot host a driven browser with per-source persistent profiles, and
+         pretending otherwise would mean shipping something that does not work.
+         The hardened runtime is on; JIT is required by JavaScriptCore, which
+         WebKit needs to render a modern portal at all. -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.network.client</key>
+    <true/>
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+    <key>keychain-access-groups</key>
+    <array>
+        <string>$(AppIdentifierPrefix)app.invoicesretriever</string>
+    </array>
+</dict>
+</plist>

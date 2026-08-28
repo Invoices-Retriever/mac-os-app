@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Add a supplier
+    url: https://github.com/Invoices-Retriever/plugins
+    about: Plugins live in their own repository. Adding one is a single JSON file.
+  - name: Report a security vulnerability
+    url: https://github.com/Invoices-Retriever/mac-os-app/security/advisories/new
+    about: Please do not open a public issue for a security problem.

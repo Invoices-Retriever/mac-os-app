@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>Invoices Retriever</string>
+    <key>CFBundleDisplayName</key>
+    <string>Invoices Retriever</string>
+    <key>CFBundleExecutable</key>
+    <string>InvoicesRetriever</string>
+    <key>CFBundleIdentifier</key>
+    <string>app.invoicesretriever</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>AGPL-3.0-or-later. Source: https://github.com/Invoices-Retriever/mac-os-app</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.finance</string>
+    <!-- The app drives a browser it owns and writes only where the user points
+         it. It asks for no camera, microphone, contacts or location. -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <false/>
+    </dict>
+</dict>
+</plist>

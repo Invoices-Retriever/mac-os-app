@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache the Swift build
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: swift-${{ runner.os }}-${{ hashFiles('Package.swift', 'Sources/**') }}
+          restore-keys: swift-${{ runner.os }}-
+
+      - name: Build
+        run: swift build -c release
+
+      - name: Test
+        run: swift run -c release irtest
+
+      - name: Package the application
+        run: ./Scripts/build-app.sh release
+
+      - name: The schema is duplicated in three places and must not drift
+        run: |
+          diff -q schema/plugin-v1.schema.json Sources/IRCore/Resources/plugin-v1.schema.json
+          echo "✓ the bundled schema matches schema/"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: InvoicesRetriever-unsigned
+          path: build/Invoices Retriever.app
+          retention-days: 14
+
+  guarantees:
+    name: Security guarantees
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      # These are grep-level checks. They cannot prove the guarantees in
+      # SECURITY.md, but they catch the specific ways a well-meaning change
+      # would quietly remove one.
+      - name: The core must not import WebKit
+        run: |
+          if grep -rn "^import WebKit" Sources/IRCore/; then
+            echo "::error::IRCore imports WebKit. The step executor must stay testable without a browser, and a future port depends on this boundary."
+            exit 1
+          fi
+          echo "✓ IRCore is browser-free"
+
+      - name: Views must not reach the vault
+        run: |
+          if grep -rn "CredentialVault\|Keychain(" Sources/InvoicesRetriever/Views/; then
+            echo "::error::A view touches the credential vault. Everything security-relevant goes through AppModel."
+            exit 1
+          fi
+          echo "✓ no view can reach a secret"
+
+      - name: The domain policy must fail closed
+        run: |
+          if ! grep -q "public static let denyAll" Sources/IRCore/Security/DomainPolicy.swift; then
+            echo "::error::DomainPolicy.denyAll is gone. The default must permit nothing."
+            exit 1
+          fi
+          echo "✓ the default policy denies everything"
+
+      - name: No secret may be logged unredacted
+        run: |
+          if grep -rn "print(" Sources/IRCore/ --include=*.swift; then
+            echo "::error::IRCore prints directly. Everything goes through RedactingLogger, which is where redaction happens."
+            exit 1
+          fi
+          echo "✓ all output goes through the redacting logger"
+
+      - name: No third-party dependencies
+        run: |
+          if grep -q "dependencies: \[$" Package.swift && grep -q "\.package(" Package.swift; then
+            echo "::error::A package dependency was added. This project ships none on purpose (threat M6); discuss it in an issue first."
+            exit 1
+          fi
+          echo "✓ no third-party dependencies"
+
+  format:
+    name: Formatting
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: JSON is well formed
+        run: |
+          for file in schema/*.json Sources/IRCore/Resources/*.json; do
+            python3 -c "import json,sys; json.load(open('$file'))" || exit 1
+          done
+          echo "✓ every JSON file parses"
