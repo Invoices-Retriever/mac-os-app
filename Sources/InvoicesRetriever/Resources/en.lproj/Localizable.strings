@@ -357,3 +357,6 @@
 "One message per invoice" = "One message per invoice";
 "What an accounting tool's intake address expects: it reads one message as one document." = "What an accounting tool's intake address expects: it reads one message as one document.";
 "One message with every invoice attached. Easier for a person to read, but an intake address will file only the first." = "One message with every invoice attached. Easier for a person to read, but an intake address will file only the first.";
+"Your suppliers" = "Your suppliers";
+"Add a supplier from the catalogue" = "Add a supplier from the catalogue";
+"General" = "General";

@@ -22,6 +22,10 @@ final class AppModel {
     var documents: [InvoiceDocument] = []
     var catalogEntries: [PluginCatalog.Entry] = []
     var selectedSection: RootSection = .sources
+    /// The supplier the sidebar is pointing at, when it is pointing at one.
+    /// The supplier list scrolls to it and marks it, so clicking a name in the
+    /// sidebar lands somewhere rather than merely opening a list of twelve.
+    var focusedSourceID: UUID?
     /// Unfiltered, so an empty list can say which kind of empty it is.
     var totalDocumentCount = 0
     var exportDestinations: [ExportDestination] = []

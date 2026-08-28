@@ -40,17 +40,33 @@ struct SourcesView: View {
                     .disabled(model.sources.filter(\.isEnabled).isEmpty || busy)
                 }
 
-                ScrollView {
-                    LazyVStack(spacing: 10) {
-                        ForEach(model.sources) { source in
-                            SourceCard(source: source,
-                                       isRunning: model.runningSourceIDs.contains(source.id),
-                                       edit: { editing = source },
-                                       remove: { deleting = source })
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 10) {
+                            ForEach(model.sources) { source in
+                                SourceCard(source: source,
+                                           isRunning: model.runningSourceIDs.contains(source.id),
+                                           isFocused: model.focusedSourceID == source.id,
+                                           edit: { editing = source },
+                                           remove: { deleting = source })
+                                    .id(source.id)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 20)
+                    }
+                    // Picking a supplier in the sidebar has to land on it. A
+                    // list that merely opens at the top has not answered.
+                    .onChange(of: model.focusedSourceID) { _, focused in
+                        guard let focused else { return }
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            proxy.scrollTo(focused, anchor: .center)
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 20)
+                    .onAppear {
+                        guard let focused = model.focusedSourceID else { return }
+                        proxy.scrollTo(focused, anchor: .center)
+                    }
                 }
             }
         }
@@ -99,6 +115,7 @@ private struct SourceCard: View {
     @Environment(AppModel.self) private var model
     let source: Source
     let isRunning: Bool
+    var isFocused = false
     let edit: () -> Void
     let remove: () -> Void
 
@@ -161,7 +178,7 @@ private struct SourceCard: View {
                 .padding(.top, 12)
             }
         }
-        .card()
+        .card(highlighted: isFocused)
         .contextMenu {
             Button(t("Edit…"), action: edit)
             Button(t("Remove…"), role: .destructive, action: remove)

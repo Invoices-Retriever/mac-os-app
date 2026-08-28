@@ -357,3 +357,6 @@
 "One message per invoice" = "Un message par facture";
 "What an accounting tool's intake address expects: it reads one message as one document." = "Ce qu'attend l'adresse de dépôt d'un outil comptable : elle lit un message comme un document.";
 "One message with every invoice attached. Easier for a person to read, but an intake address will file only the first." = "Un seul message avec toutes les factures en pièces jointes. Plus lisible pour une personne, mais une adresse de dépôt ne classera que la première.";
+"Your suppliers" = "Vos fournisseurs";
+"Add a supplier from the catalogue" = "Ajouter un fournisseur depuis le catalogue";
+"General" = "Général";
