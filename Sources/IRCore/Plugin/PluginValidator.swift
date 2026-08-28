@@ -45,6 +45,95 @@ public enum PluginValidator {
                                 engineVersion: SemVer = PluginManifest.engineVersion) -> Report {
         var issues: [Issue] = []
 
+        // --- API transport --------------------------------------------------
+        if let api = m.api {
+            let policy = m.domainPolicy
+
+            func requireAllowed(_ raw: String, _ path: String) {
+                guard let url = URL(string: raw), let host = url.host else {
+                    issues.append(.init(severity: .error, path: path,
+                                        message: "'\(raw)' is not a URL"))
+                    return
+                }
+                if !policy.allows(host: host) {
+                    issues.append(.init(severity: .error, path: path,
+                                        message: "\(host) is not in allowedDomains",
+                                        hint: "Add \"\(host)\" — the sandbox applies to API calls too."))
+                }
+            }
+            requireAllowed(api.baseURL, "api.baseUrl")
+            if URL(string: api.baseURL)?.scheme != "https" {
+                issues.append(.init(severity: .error, path: "api.baseUrl",
+                                    message: "the API base must be https",
+                                    hint: "Credentials would otherwise travel in clear."))
+            }
+
+            // A plugin with no browser cannot click, type or run scripts. Say
+            // so here rather than letting a user discover it mid-collection.
+            let browserOnly: Set<StepAction> = [
+                .navigate, .waitForURL, .waitForElement, .waitForNavigation, .waitForNetworkIdle,
+                .click, .type, .dropdownSelect, .runJs, .checkElementExists, .checkURL,
+                .extractNetworkResponse, .waitForPdfDownload, .printPdf, .downloadBase64Pdf,
+            ]
+            for (step, path) in walkSteps(m) where browserOnly.contains(step.action) {
+                issues.append(.init(severity: .error, path: path,
+                                    message: "'\(step.action.rawValue)' needs a browser, "
+                                           + "and this plugin declares an API",
+                                    hint: "API plugins use apiRequest, extractAll over items, "
+                                        + "extract and downloadPdf."))
+            }
+            if m.startAuth != nil {
+                issues.append(.init(severity: .error, path: "startAuth",
+                                    message: "an API plugin has no interactive sign-in",
+                                    hint: "Credentials are entered once; remove startAuth."))
+            }
+
+            switch api.auth?.type {
+            case .signature:
+                guard let signature = api.auth?.signature else {
+                    issues.append(.init(severity: .error, path: "api.auth.signature",
+                                        message: "a signed API needs a signature recipe"))
+                    break
+                }
+                if signature.parts.isEmpty {
+                    issues.append(.init(severity: .error, path: "api.auth.signature.parts",
+                                        message: "the signature has no parts to hash"))
+                }
+                if signature.algorithm.isHMAC, signature.key == nil {
+                    issues.append(.init(severity: .error, path: "api.auth.signature.key",
+                                        message: "\(signature.algorithm.rawValue) needs a key"))
+                }
+                if let time = api.auth?.time { requireAllowed(time.url, "api.auth.time.url") }
+            case .oauth2ClientCredentials:
+                guard let token = api.auth?.token else {
+                    issues.append(.init(severity: .error, path: "api.auth.token",
+                                        message: "OAuth2 needs a token endpoint"))
+                    break
+                }
+                requireAllowed(token.url, "api.auth.token.url")
+            case .basic:
+                if api.auth?.username == nil || api.auth?.password == nil {
+                    issues.append(.init(severity: .error, path: "api.auth",
+                                        message: "basic authentication needs a username and a password"))
+                }
+            case .header, .none:
+                break
+            }
+
+            // Credentials belong in the Keychain, and only a password-typed
+            // field goes there. A key pasted into a plain string field would
+            // sit in the database in clear.
+            for (key, field) in m.configSchema ?? [:] {
+                let looksSecret = ["secret", "password", "token", "consumerkey", "privatekey", "apikey"]
+                    .contains { key.lowercased().contains($0) }
+                if looksSecret, field.type != .password, field.type != .totp {
+                    issues.append(.init(severity: .error, path: "configSchema.\(key)",
+                                        message: "'\(key)' looks like a credential but is not a password field",
+                                        hint: "Only password fields reach the Keychain."))
+                }
+            }
+        }
+
         // --- Identity -------------------------------------------------------
         if m.id.range(of: "^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$", options: .regularExpression) == nil {
             issues.append(.init(severity: .error, path: "id",
@@ -127,6 +216,11 @@ public enum PluginValidator {
         if m.checkAuth.isEmpty {
             issues.append(.init(severity: .error, path: "checkAuth", message: "checkAuth must not be empty"))
         } else if let last = m.checkAuth.last,
+                  // For an API plugin the call *is* the verification: an
+                  // authenticated endpoint answers 401 when the keys are wrong,
+                  // which the engine turns into "credentials refused". There is
+                  // no URL to compare and no element to look for.
+                  !(m.isAPIOnly && last.action == .apiRequest),
                   ![.checkURL, .checkElementExists, .runJs].contains(last.action) {
             issues.append(.init(severity: .error, path: "checkAuth",
                                 message: "checkAuth must end in a verification step",
@@ -149,7 +243,10 @@ public enum PluginValidator {
 
         // --- Config ---------------------------------------------------------
         let declared = Set((m.configSchema ?? [:]).keys)
-        let used = referencedConfigKeys(in: m.allSteps)
+        // The transport's own templates use credentials too — an API key
+        // appears only in a signature recipe, never in a step.
+        var used = referencedConfigKeys(in: m.allSteps)
+        used.formUnion(referencedConfigKeys(inTemplates: m.api.map(transportTemplates) ?? []))
         for key in used.subtracting(declared).sorted() {
             issues.append(.init(severity: .error, path: "configSchema",
                                 message: "steps reference {{config.\(key)}} or {{secret.\(key)}} but configSchema does not declare '\(key)'"))
@@ -257,7 +354,10 @@ public enum PluginValidator {
                 issues.append(.init(severity: .error, path: path,
                                     message: "only GET and POST are allowed; a collector does not modify a portal"))
             }
-            if let url = step.url, !url.hasPrefix("https://"), !url.contains("{{") {
+            // A relative path takes its scheme from api.baseUrl, which is
+            // required to be https in its own right.
+            if let url = step.url, !url.hasPrefix("https://"), !url.contains("{{"),
+               !(manifest.isAPIOnly && url.hasPrefix("/")) {
                 issues.append(.init(severity: .error, path: path,
                                     message: "apiRequest must use https"))
             }
@@ -315,6 +415,19 @@ public enum PluginValidator {
     }
 
     /// Every `{{config.x}}` / `{{secret.x}}` referenced anywhere in the plugin.
+    /// Same scan, over a bare list of templates.
+    static func referencedConfigKeys(inTemplates templates: [String]) -> Set<String> {
+        var keys: Set<String> = []
+        let pattern = try! NSRegularExpression(pattern: "\\{\\{\\s*(?:config|secret|totp)\\.([a-zA-Z0-9_]+)")
+        for text in templates {
+            let ns = text as NSString
+            for match in pattern.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+                keys.insert(ns.substring(with: match.range(at: 1)))
+            }
+        }
+        return keys
+    }
+
     static func referencedConfigKeys(in steps: [PluginStep]) -> Set<String> {
         var keys: Set<String> = []
         let pattern = try! NSRegularExpression(pattern: "\\{\\{\\s*(?:config|secret|totp)\\.([a-zA-Z0-9_]+)")
@@ -380,9 +493,29 @@ public extension PluginManifest {
     var requiredEngineFloor: SemVer { IRCore.requiredEngineFloor(self) }
 }
 
+
+/// Every step in a manifest, with the path that names it.
+func walkSteps(_ manifest: PluginManifest) -> [(step: PluginStep, path: String)] {
+    var out: [(PluginStep, String)] = []
+    func walk(_ steps: [PluginStep], _ path: String) {
+        for (index, step) in steps.enumerated() {
+            let here = "\(path)[\(index)]"
+            out.append((step, here))
+            walk(step.forEach ?? [], "\(here).forEach")
+            walk(step.then ?? [], "\(here).then")
+            walk(step.else ?? [], "\(here).else")
+        }
+    }
+    walk(manifest.checkAuth, "checkAuth")
+    walk(manifest.startAuth ?? [], "startAuth")
+    walk(manifest.getConfigOptions ?? [], "getConfigOptions")
+    walk(manifest.getDocuments, "getDocuments")
+    return out
+}
+
 /// The lowest engine that can run every step in `manifest`.
 public func requiredEngineFloor(_ manifest: PluginManifest) -> SemVer {
-    var floor = SemVer(1, 0, 0)
+    var floor = manifest.api == nil ? SemVer(1, 0, 0) : SemVer(1, 2, 0)
     func walk(_ steps: [PluginStep]) {
         for step in steps {
             var features: [String] = [step.action.rawValue]
@@ -399,4 +532,24 @@ public func requiredEngineFloor(_ manifest: PluginManifest) -> SemVer {
     }
     walk(manifest.allSteps)
     return floor
+}
+
+/// Every template an API transport can carry, so the credential scan sees the
+/// keys that appear only in a signature recipe.
+func transportTemplates(_ api: APITransport) -> [String] {
+    var out = Array((api.headers ?? [:]).values)
+    guard let auth = api.auth else { return out }
+    out += Array((auth.headers ?? [:]).values)
+    out += [auth.username, auth.password].compactMap { $0 }
+    if let token = auth.token {
+        out += [token.url, token.clientID, token.clientSecret]
+        out += [token.scope].compactMap { $0 }
+        out += Array((token.parameters ?? [:]).values)
+    }
+    if let time = auth.time { out.append(time.url) }
+    if let signature = auth.signature {
+        out += signature.parts
+        out += [signature.key].compactMap { $0 }
+    }
+    return out
 }

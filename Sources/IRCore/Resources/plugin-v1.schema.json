@@ -6,37 +6,57 @@
   "type": "object",
   "required": ["id", "name", "version", "engine", "allowedDomains", "checkAuth", "getDocuments"],
   "additionalProperties": false,
-
   "properties": {
-    "$schema": { "type": "string" },
-
+    "$schema": {
+      "type": "string"
+    },
     "id": {
       "type": "string",
       "description": "Unique, stable, lowercase identifier. Never change it once published: sources reference it.",
       "pattern": "^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$"
     },
-    "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
     "version": {
       "type": "string",
       "description": "Semantic version of this plugin. Bump on every merged change.",
       "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-.]+)?$"
     },
-    "description": { "type": "string", "maxLength": 400 },
-    "homepage": { "type": "string", "format": "uri", "pattern": "^https://" },
+    "description": {
+      "type": "string",
+      "maxLength": 400
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
     "maintainers": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^@[A-Za-z0-9-]+$" },
+      "items": {
+        "type": "string",
+        "pattern": "^@[A-Za-z0-9-]+$"
+      },
       "description": "GitHub handles. An empty list means unmaintained; see the archival policy."
     },
     "country": {
       "type": "array",
       "description": "ISO 3166-1 alpha-2 codes, or EU. Drives catalogue browsing by market.",
       "minItems": 1,
-      "items": { "type": "string", "pattern": "^([A-Z]{2}|EU)$" }
+      "items": {
+        "type": "string",
+        "pattern": "^([A-Z]{2}|EU)$"
+      }
     },
     "tags": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]*$"
+      },
       "maxItems": 12
     },
     "engine": {
@@ -44,7 +64,6 @@
       "description": "Minimum engine version required, as a caret or >= range. The app refuses a plugin demanding more than it implements.",
       "pattern": "^(>=|\\^|~)?(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
     },
-
     "allowedDomains": {
       "type": "array",
       "description": "MANDATORY network sandbox. The driver — not the plugin — blocks every navigation and subresource outside this list. This is the single most important security control in the project.",
@@ -55,37 +74,188 @@
         "pattern": "^(\\*\\.)?([a-z0-9]([a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}$"
       }
     },
-
     "usesJs": {
       "type": "boolean",
       "default": false,
       "description": "Declares that this plugin contains runJs steps. The UI surfaces it and CI cross-checks the declaration against the actual steps."
     },
-
     "status": {
       "enum": ["unverified", "active", "degraded", "archived"],
       "default": "active",
       "description": "unverified is where every plugin starts: structurally valid, never run against a live account. active once someone has. degraded when it is failing for several people, archived when unmaintained and broken for 90 days — archived plugins are no longer offered for installation."
     },
-
     "configSchema": {
       "type": "object",
       "description": "Fields the app asks the user for. Keys become {{config.<key>}}; password and totp values become {{secret.<key>}} and never leave the vault.",
-      "additionalProperties": { "$ref": "#/$defs/configField" }
+      "additionalProperties": {
+        "$ref": "#/$defs/configField"
+      }
     },
-
     "autofill": {
       "description": "true to fill credentials automatically where the plugin says to, false to always let the user type them, or a per-field object.",
       "oneOf": [
-        { "type": "boolean" },
+        {
+          "type": "boolean"
+        },
         {
           "type": "object",
-          "additionalProperties": { "type": "boolean" }
+          "additionalProperties": {
+            "type": "boolean"
+          }
         }
       ],
       "default": true
     },
-
+    "api": {
+      "type": "object",
+      "description": "Present when the plugin talks to the supplier's API with the user's own API credentials and never opens a browser. Different from an apiRequest step in a browser plugin, which borrows the session the user signed in for.",
+      "additionalProperties": false,
+      "required": ["baseUrl"],
+      "properties": {
+        "baseUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://",
+          "description": "Prefixed to every relative URL in the steps. Its host must be in allowedDomains."
+        },
+        "credentialsUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "Where the user creates the keys. Shown when adding a source — \"create an application key\" is useless without the URL."
+        },
+        "headers": {
+          "type": "object",
+          "description": "Sent on every request. Values are templates.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "auth": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "description": "Declared as a recipe from a closed vocabulary, never as code: a reviewer who is not a programmer must be able to read what a plugin does with the credentials.",
+          "properties": {
+            "type": {
+              "enum": ["header", "basic", "oauth2ClientCredentials", "signature"],
+              "description": "header: everything is already in `headers` (an API key, a bearer token). basic: HTTP Basic. oauth2ClientCredentials: exchange a client id and secret for a token. signature: hash an ordered list of parts into a header."
+            },
+            "headers": {
+              "type": "object",
+              "description": "Added to every request. Templates, so {{secret.appKey}}.",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "username": {
+              "type": "string",
+              "description": "basic only. A template."
+            },
+            "password": {
+              "type": "string",
+              "description": "basic only. A template."
+            },
+            "token": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["url", "clientId", "clientSecret"],
+              "description": "oauth2ClientCredentials only. The only OAuth2 flow that needs no browser, which is why it is the only one here.",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "pattern": "^https://"
+                },
+                "clientId": {
+                  "type": "string"
+                },
+                "clientSecret": {
+                  "type": "string"
+                },
+                "scope": {
+                  "type": "string"
+                },
+                "parameters": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "jsonPath": {
+                  "type": "string",
+                  "description": "Where the answer keeps the token. Default: access_token."
+                },
+                "header": {
+                  "type": "string",
+                  "description": "Default: Authorization."
+                },
+                "format": {
+                  "type": "string",
+                  "description": "Default: \"Bearer %@\"."
+                }
+              }
+            },
+            "time": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["url"],
+              "description": "For signatures checked against the server's clock. Read once per run; later requests advance it locally.",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "pattern": "^https://"
+                },
+                "format": {
+                  "enum": ["text", "json"],
+                  "default": "text"
+                },
+                "jsonPath": {
+                  "type": "string"
+                }
+              }
+            },
+            "signature": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["header", "algorithm", "parts"],
+              "description": "parts are joined by separator, hashed with algorithm, and written into header after prefix.",
+              "properties": {
+                "header": {
+                  "type": "string"
+                },
+                "algorithm": {
+                  "enum": ["sha1", "sha256", "sha512", "hmacSha1", "hmacSha256", "hmacSha512"]
+                },
+                "parts": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Templates. Beyond the usual namespaces these may use {{request.method}}, {{request.url}}, {{request.body}} and {{api.time}}."
+                },
+                "separator": {
+                  "type": "string",
+                  "default": "+"
+                },
+                "prefix": {
+                  "type": "string"
+                },
+                "encoding": {
+                  "enum": ["hex", "base64"],
+                  "default": "hex"
+                },
+                "key": {
+                  "type": "string",
+                  "description": "Required by the hmac algorithms. A template."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "checkAuth": {
       "$ref": "#/$defs/steps",
       "description": "Determines whether the persisted session is still valid. Must end in a verification step (checkURL or checkElementExists)."
@@ -103,45 +273,62 @@
       "description": "Lists and downloads invoices. Every document must be emitted by a document-producing step."
     }
   },
-
   "$defs": {
     "configField": {
       "type": "object",
       "required": ["type", "label"],
       "additionalProperties": false,
       "properties": {
-        "type": { "enum": ["string", "password", "totp", "number", "boolean", "select", "date"] },
-        "label": { "type": "string", "minLength": 1 },
-        "help": { "type": "string" },
-        "required": { "type": "boolean", "default": false },
+        "type": {
+          "enum": ["string", "password", "totp", "number", "boolean", "select", "date"]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "help": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
         "default": {},
-        "placeholder": { "type": "string" },
+        "placeholder": {
+          "type": "string"
+        },
         "options": {
           "type": "array",
           "items": {
             "type": "object",
             "required": ["value", "label"],
-            "properties": { "value": { "type": "string" }, "label": { "type": "string" } },
+            "properties": {
+              "value": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
             "additionalProperties": false
           }
         }
       }
     },
-
     "steps": {
       "type": "array",
       "minItems": 1,
       "maxItems": 120,
-      "items": { "$ref": "#/$defs/step" }
+      "items": {
+        "$ref": "#/$defs/step"
+      }
     },
-
     "selector": {
       "type": "string",
       "minLength": 1,
       "maxLength": 500,
       "description": "CSS selector. Prefix with 'text=' to match by visible text, or 'xpath=' for XPath."
     },
-
     "document": {
       "type": "object",
       "description": "Normalised document descriptor. id and date are mandatory; total is strongly recommended.",
@@ -165,23 +352,38 @@
           "type": "string",
           "description": "ISO 4217 code. Inferred from total when omitted."
         },
-        "net": { "type": "string" },
-        "vat": { "type": "string" },
-        "number": { "type": "string", "description": "Invoice number as printed on the document." },
-        "issuer": { "type": "string" },
+        "net": {
+          "type": "string"
+        },
+        "vat": {
+          "type": "string"
+        },
+        "number": {
+          "type": "string",
+          "description": "Invoice number as printed on the document."
+        },
+        "issuer": {
+          "type": "string"
+        },
         "type": {
           "enum": ["invoice", "credit-note", "receipt", "statement", "other"],
           "default": "invoice"
         },
-        "metadata": { "type": "object", "additionalProperties": { "type": "string" } }
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
       }
     },
-
     "step": {
       "type": "object",
       "required": ["action"],
       "properties": {
-        "action": { "type": "string" },
+        "action": {
+          "type": "string"
+        },
         "description": {
           "type": "string",
           "description": "Shown in the run log and the step-by-step debugger."
@@ -189,7 +391,14 @@
       },
       "allOf": [
         {
-          "if": { "properties": { "action": { "const": "navigate" } }, "required": ["action"] },
+          "if": {
+            "properties": {
+              "action": {
+                "const": "navigate"
+              }
+            },
+            "required": ["action"]
+          },
           "then": {
             "required": ["url"],
             "properties": {
@@ -198,15 +407,32 @@
               "url": {
                 "type": "string",
                 "description": "Must be https. A value built from a template is checked at run time instead, because the host cannot be known statically.",
-                "anyOf": [{ "pattern": "^https://" }, { "pattern": "\\{\\{" }]
+                "anyOf": [
+                  {
+                    "pattern": "^https://"
+                  },
+                  {
+                    "pattern": "\\{\\{"
+                  },
+                  {
+                    "pattern": "^/",
+                    "description": "A path relative to api.baseUrl, for plugins that declare one."
+                  }
+                ]
               }
             },
             "additionalProperties": false
           }
         },
-
         {
-          "if": { "properties": { "action": { "const": "waitForURL" } }, "required": ["action"] },
+          "if": {
+            "properties": {
+              "action": {
+                "const": "waitForURL"
+              }
+            },
+            "required": ["action"]
+          },
           "then": {
             "required": ["url"],
             "properties": {
@@ -216,15 +442,20 @@
                 "type": "string",
                 "description": "Glob-ish pattern; * matches any run of characters."
               },
-              "timeout": { "$ref": "#/$defs/timeout" }
+              "timeout": {
+                "$ref": "#/$defs/timeout"
+              }
             },
             "additionalProperties": false
           }
         },
-
         {
           "if": {
-            "properties": { "action": { "const": "waitForElement" } },
+            "properties": {
+              "action": {
+                "const": "waitForElement"
+              }
+            },
             "required": ["action"]
           },
           "then": {
@@ -232,85 +463,98 @@
             "properties": {
               "action": {},
               "description": {},
-              "selector": { "$ref": "#/$defs/selector" },
-              "timeout": { "$ref": "#/$defs/timeout" }
+              "selector": {
+                "$ref": "#/$defs/selector"
+              },
+              "timeout": {
+                "$ref": "#/$defs/timeout"
+              }
             },
             "additionalProperties": false
           }
         },
-
         {
           "if": {
-            "properties": { "action": { "const": "waitForNavigation" } },
+            "properties": {
+              "action": {
+                "const": "waitForNavigation"
+              }
+            },
             "required": ["action"]
           },
           "then": {
             "properties": {
               "action": {},
               "description": {},
-              "timeout": { "$ref": "#/$defs/timeout" }
+              "timeout": {
+                "$ref": "#/$defs/timeout"
+              }
             },
             "additionalProperties": false
           }
         },
-
         {
           "if": {
-            "properties": { "action": { "const": "waitForNetworkIdle" } },
+            "properties": {
+              "action": {
+                "const": "waitForNetworkIdle"
+              }
+            },
             "required": ["action"]
           },
           "then": {
             "properties": {
               "action": {},
               "description": {},
-              "idleMs": { "type": "integer", "minimum": 100, "maximum": 10000, "default": 500 },
-              "timeout": { "$ref": "#/$defs/timeout" }
+              "idleMs": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 10000,
+                "default": 500
+              },
+              "timeout": {
+                "$ref": "#/$defs/timeout"
+              }
             },
             "additionalProperties": false
           }
         },
-
         {
-          "if": { "properties": { "action": { "const": "click" } }, "required": ["action"] },
+          "if": {
+            "properties": {
+              "action": {
+                "const": "click"
+              }
+            },
+            "required": ["action"]
+          },
           "then": {
             "required": ["selector"],
             "properties": {
               "action": {},
               "description": {},
-              "selector": { "$ref": "#/$defs/selector" },
+              "selector": {
+                "$ref": "#/$defs/selector"
+              },
               "optional": {
                 "type": "boolean",
                 "default": false,
                 "description": "Do not fail if the element is absent."
               },
-              "timeout": { "$ref": "#/$defs/timeout" }
+              "timeout": {
+                "$ref": "#/$defs/timeout"
+              }
             },
             "additionalProperties": false
           }
         },
-
-        {
-          "if": { "properties": { "action": { "const": "type" } }, "required": ["action"] },
-          "then": {
-            "required": ["selector", "value"],
-            "properties": {
-              "action": {},
-              "description": {},
-              "selector": { "$ref": "#/$defs/selector" },
-              "value": {
-                "type": "string",
-                "description": "Template. Use {{secret.<key>}} for vault values, {{totp.<key>}} for a generated code."
-              },
-              "pressEnter": { "type": "boolean", "default": false },
-              "timeout": { "$ref": "#/$defs/timeout" }
-            },
-            "additionalProperties": false
-          }
-        },
-
         {
           "if": {
-            "properties": { "action": { "const": "dropdownSelect" } },
+            "properties": {
+              "action": {
+                "const": "type"
+              }
+            },
             "required": ["action"]
           },
           "then": {
@@ -318,16 +562,60 @@
             "properties": {
               "action": {},
               "description": {},
-              "selector": { "$ref": "#/$defs/selector" },
-              "value": { "type": "string" },
-              "timeout": { "$ref": "#/$defs/timeout" }
+              "selector": {
+                "$ref": "#/$defs/selector"
+              },
+              "value": {
+                "type": "string",
+                "description": "Template. Use {{secret.<key>}} for vault values, {{totp.<key>}} for a generated code."
+              },
+              "pressEnter": {
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "$ref": "#/$defs/timeout"
+              }
             },
             "additionalProperties": false
           }
         },
-
         {
-          "if": { "properties": { "action": { "const": "runJs" } }, "required": ["action"] },
+          "if": {
+            "properties": {
+              "action": {
+                "const": "dropdownSelect"
+              }
+            },
+            "required": ["action"]
+          },
+          "then": {
+            "required": ["selector", "value"],
+            "properties": {
+              "action": {},
+              "description": {},
+              "selector": {
+                "$ref": "#/$defs/selector"
+              },
+              "value": {
+                "type": "string"
+              },
+              "timeout": {
+                "$ref": "#/$defs/timeout"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "runJs"
+              }
+            },
+            "required": ["action"]
+          },
           "then": {
             "required": ["code"],
             "properties": {
@@ -338,16 +626,23 @@
                 "maxLength": 4000,
                 "description": "Evaluated in the page. Requires usesJs: true and human review."
               },
-              "assignTo": { "$ref": "#/$defs/varName" },
-              "timeout": { "$ref": "#/$defs/timeout" }
+              "assignTo": {
+                "$ref": "#/$defs/varName"
+              },
+              "timeout": {
+                "$ref": "#/$defs/timeout"
+              }
             },
             "additionalProperties": false
           }
         },
-
         {
           "if": {
-            "properties": { "action": { "const": "checkElementExists" } },
+            "properties": {
+              "action": {
+                "const": "checkElementExists"
+              }
+            },
             "required": ["action"]
           },
           "then": {
@@ -355,36 +650,62 @@
             "properties": {
               "action": {},
               "description": {},
-              "selector": { "$ref": "#/$defs/selector" },
-              "expect": { "type": "boolean", "default": true },
-              "timeout": { "$ref": "#/$defs/timeout" }
+              "selector": {
+                "$ref": "#/$defs/selector"
+              },
+              "expect": {
+                "type": "boolean",
+                "default": true
+              },
+              "timeout": {
+                "$ref": "#/$defs/timeout"
+              }
             },
             "additionalProperties": false
           }
         },
-
         {
-          "if": { "properties": { "action": { "const": "checkURL" } }, "required": ["action"] },
+          "if": {
+            "properties": {
+              "action": {
+                "const": "checkURL"
+              }
+            },
+            "required": ["action"]
+          },
           "then": {
             "required": ["url"],
             "properties": {
               "action": {},
               "description": {},
-              "url": { "type": "string" },
-              "expect": { "type": "boolean", "default": true }
+              "url": {
+                "type": "string"
+              },
+              "expect": {
+                "type": "boolean",
+                "default": true
+              }
             },
             "additionalProperties": false
           }
         },
-
         {
-          "if": { "properties": { "action": { "const": "extract" } }, "required": ["action"] },
+          "if": {
+            "properties": {
+              "action": {
+                "const": "extract"
+              }
+            },
+            "required": ["action"]
+          },
           "then": {
             "required": ["assignTo"],
             "properties": {
               "action": {},
               "description": {},
-              "selector": { "$ref": "#/$defs/selector" },
+              "selector": {
+                "$ref": "#/$defs/selector"
+              },
               "attribute": {
                 "type": "string",
                 "description": "Read this attribute instead of the text content. 'href' and 'src' are resolved to absolute URLs."
@@ -393,20 +714,43 @@
                 "type": "string",
                 "description": "Applied to the extracted value; capture group 1 wins if present."
               },
-              "from": { "enum": ["element", "url", "title", "page"], "default": "element" },
-              "assignTo": { "$ref": "#/$defs/varName" },
-              "optional": { "type": "boolean", "default": false },
-              "timeout": { "$ref": "#/$defs/timeout" }
+              "from": {
+                "enum": ["element", "url", "title", "page"],
+                "default": "element"
+              },
+              "assignTo": {
+                "$ref": "#/$defs/varName"
+              },
+              "optional": {
+                "type": "boolean",
+                "default": false
+              },
+              "timeout": {
+                "$ref": "#/$defs/timeout"
+              }
             },
             "additionalProperties": false
           }
         },
-
         {
-          "if": { "properties": { "action": { "const": "extractAll" } }, "required": ["action"] },
+          "if": {
+            "properties": {
+              "action": {
+                "const": "extractAll"
+              }
+            },
+            "required": ["action"]
+          },
           "then": {
             "required": ["forEach"],
-            "oneOf": [{ "required": ["selector"] }, { "required": ["items"] }],
+            "oneOf": [
+              {
+                "required": ["selector"]
+              },
+              {
+                "required": ["items"]
+              }
+            ],
             "properties": {
               "action": {},
               "description": {},
@@ -425,23 +769,41 @@
                   "type": "object",
                   "additionalProperties": false,
                   "properties": {
-                    "selector": { "$ref": "#/$defs/selector" },
-                    "attribute": { "type": "string" },
-                    "regex": { "type": "string" },
-                    "optional": { "type": "boolean", "default": false }
+                    "selector": {
+                      "$ref": "#/$defs/selector"
+                    },
+                    "attribute": {
+                      "type": "string"
+                    },
+                    "regex": {
+                      "type": "string"
+                    },
+                    "optional": {
+                      "type": "boolean",
+                      "default": false
+                    }
                   }
                 }
               },
-              "limit": { "type": "integer", "minimum": 1, "maximum": 500 },
-              "forEach": { "$ref": "#/$defs/steps" }
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 500
+              },
+              "forEach": {
+                "$ref": "#/$defs/steps"
+              }
             },
             "additionalProperties": false
           }
         },
-
         {
           "if": {
-            "properties": { "action": { "const": "extractNetworkResponse" } },
+            "properties": {
+              "action": {
+                "const": "extractNetworkResponse"
+              }
+            },
             "required": ["action"]
           },
           "then": {
@@ -457,31 +819,50 @@
                 "type": "string",
                 "description": "Dotted path into the JSON body, e.g. data.invoices"
               },
-              "assignTo": { "$ref": "#/$defs/varName" },
-              "timeout": { "$ref": "#/$defs/timeout" }
+              "assignTo": {
+                "$ref": "#/$defs/varName"
+              },
+              "timeout": {
+                "$ref": "#/$defs/timeout"
+              }
             },
             "additionalProperties": false
           }
         },
-
         {
-          "if": { "properties": { "action": { "const": "downloadPdf" } }, "required": ["action"] },
+          "if": {
+            "properties": {
+              "action": {
+                "const": "downloadPdf"
+              }
+            },
+            "required": ["action"]
+          },
           "then": {
             "required": ["url", "document"],
             "properties": {
               "action": {},
               "description": {},
-              "url": { "type": "string" },
-              "document": { "$ref": "#/$defs/document" },
-              "timeout": { "$ref": "#/$defs/timeout" }
+              "url": {
+                "type": "string"
+              },
+              "document": {
+                "$ref": "#/$defs/document"
+              },
+              "timeout": {
+                "$ref": "#/$defs/timeout"
+              }
             },
             "additionalProperties": false
           }
         },
-
         {
           "if": {
-            "properties": { "action": { "const": "waitForPdfDownload" } },
+            "properties": {
+              "action": {
+                "const": "waitForPdfDownload"
+              }
+            },
             "required": ["action"]
           },
           "then": {
@@ -489,31 +870,50 @@
             "properties": {
               "action": {},
               "description": {},
-              "document": { "$ref": "#/$defs/document" },
-              "timeout": { "$ref": "#/$defs/timeout" }
+              "document": {
+                "$ref": "#/$defs/document"
+              },
+              "timeout": {
+                "$ref": "#/$defs/timeout"
+              }
             },
             "additionalProperties": false
           }
         },
-
         {
-          "if": { "properties": { "action": { "const": "printPdf" } }, "required": ["action"] },
+          "if": {
+            "properties": {
+              "action": {
+                "const": "printPdf"
+              }
+            },
+            "required": ["action"]
+          },
           "then": {
             "required": ["document"],
             "properties": {
               "action": {},
               "description": {},
-              "document": { "$ref": "#/$defs/document" },
-              "selector": { "$ref": "#/$defs/selector" },
-              "timeout": { "$ref": "#/$defs/timeout" }
+              "document": {
+                "$ref": "#/$defs/document"
+              },
+              "selector": {
+                "$ref": "#/$defs/selector"
+              },
+              "timeout": {
+                "$ref": "#/$defs/timeout"
+              }
             },
             "additionalProperties": false
           }
         },
-
         {
           "if": {
-            "properties": { "action": { "const": "downloadBase64Pdf" } },
+            "properties": {
+              "action": {
+                "const": "downloadBase64Pdf"
+              }
+            },
             "required": ["action"]
           },
           "then": {
@@ -525,29 +925,49 @@
                 "type": "string",
                 "description": "Template resolving to base64 payload, with or without a data: prefix."
               },
-              "document": { "$ref": "#/$defs/document" }
+              "document": {
+                "$ref": "#/$defs/document"
+              }
             },
             "additionalProperties": false
           }
         },
-
         {
-          "if": { "properties": { "action": { "const": "if" } }, "required": ["action"] },
+          "if": {
+            "properties": {
+              "action": {
+                "const": "if"
+              }
+            },
+            "required": ["action"]
+          },
           "then": {
             "required": ["condition", "then"],
             "properties": {
               "action": {},
               "description": {},
-              "condition": { "$ref": "#/$defs/condition" },
-              "then": { "$ref": "#/$defs/steps" },
-              "else": { "$ref": "#/$defs/steps" }
+              "condition": {
+                "$ref": "#/$defs/condition"
+              },
+              "then": {
+                "$ref": "#/$defs/steps"
+              },
+              "else": {
+                "$ref": "#/$defs/steps"
+              }
             },
             "additionalProperties": false
           }
         },
-
         {
-          "if": { "properties": { "action": { "const": "sleep" } }, "required": ["action"] },
+          "if": {
+            "properties": {
+              "action": {
+                "const": "sleep"
+              }
+            },
+            "required": ["action"]
+          },
           "then": {
             "required": ["ms"],
             "properties": {
@@ -563,28 +983,47 @@
             "additionalProperties": false
           }
         },
-
         {
-          "if": { "properties": { "action": { "const": "exposeOption" } }, "required": ["action"] },
+          "if": {
+            "properties": {
+              "action": {
+                "const": "exposeOption"
+              }
+            },
+            "required": ["action"]
+          },
           "then": {
             "required": ["key", "label"],
             "properties": {
               "action": {},
               "description": {},
-              "key": { "$ref": "#/$defs/varName" },
-              "label": { "type": "string" },
+              "key": {
+                "$ref": "#/$defs/varName"
+              },
+              "label": {
+                "type": "string"
+              },
               "values": {
                 "type": "string",
                 "description": "Template resolving to a variable holding a list of {value,label} objects."
               },
-              "multiple": { "type": "boolean", "default": false }
+              "multiple": {
+                "type": "boolean",
+                "default": false
+              }
             },
             "additionalProperties": false
           }
         },
-
         {
-          "if": { "properties": { "action": { "const": "apiRequest" } }, "required": ["action"] },
+          "if": {
+            "properties": {
+              "action": {
+                "const": "apiRequest"
+              }
+            },
+            "required": ["action"]
+          },
           "then": {
             "required": ["url", "assignTo"],
             "properties": {
@@ -593,14 +1032,30 @@
               "url": {
                 "type": "string",
                 "description": "The endpoint. Called from inside the signed-in page, so it carries the session already established and obeys allowedDomains like everything else — an API connector needs no second set of credentials.",
-                "anyOf": [{ "pattern": "^https://" }, { "pattern": "\\{\\{" }]
+                "anyOf": [
+                  {
+                    "pattern": "^https://"
+                  },
+                  {
+                    "pattern": "\\{\\{"
+                  },
+                  {
+                    "pattern": "^/",
+                    "description": "A path relative to api.baseUrl, for plugins that declare one."
+                  }
+                ]
               },
               "method": {
                 "enum": ["GET", "POST"],
                 "default": "GET",
                 "description": "Reading only. A collector has no business changing anything on a portal."
               },
-              "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+              "headers": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
               "body": {
                 "type": "string",
                 "description": "Request body for POST, after template substitution."
@@ -609,13 +1064,16 @@
                 "type": "string",
                 "description": "Dotted path into the response, e.g. data.invoices"
               },
-              "assignTo": { "$ref": "#/$defs/varName" },
-              "timeout": { "$ref": "#/$defs/timeout" }
+              "assignTo": {
+                "$ref": "#/$defs/varName"
+              },
+              "timeout": {
+                "$ref": "#/$defs/timeout"
+              }
             },
             "additionalProperties": false
           }
         },
-
         {
           "properties": {
             "action": {
@@ -648,28 +1106,43 @@
         }
       ]
     },
-
     "condition": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "elementExists": { "$ref": "#/$defs/selector" },
-        "urlMatches": { "type": "string" },
+        "elementExists": {
+          "$ref": "#/$defs/selector"
+        },
+        "urlMatches": {
+          "type": "string"
+        },
         "variableEquals": {
           "type": "object",
           "required": ["name", "value"],
           "additionalProperties": false,
-          "properties": { "name": { "type": "string" }, "value": { "type": "string" } }
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          }
         },
-        "variableIsSet": { "type": "string" },
-        "not": { "$ref": "#/$defs/condition" }
+        "variableIsSet": {
+          "type": "string"
+        },
+        "not": {
+          "$ref": "#/$defs/condition"
+        }
       },
       "minProperties": 1,
       "maxProperties": 1
     },
-
-    "varName": { "type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9_]{0,40}$" },
-
+    "varName": {
+      "type": "string",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9_]{0,40}$"
+    },
     "timeout": {
       "type": "integer",
       "minimum": 100,

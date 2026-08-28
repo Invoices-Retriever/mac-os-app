@@ -21,6 +21,13 @@ final class AppModel {
     var sources: [Source] = []
     var documents: [InvoiceDocument] = []
     var catalogEntries: [PluginCatalog.Entry] = []
+
+    /// True when this source's plugin talks to an API with its own credentials.
+    /// It changes what the interface can honestly offer: there is no portal to
+    /// open, so "Sign in" would be a button that cannot do anything.
+    func isAPIOnly(_ source: Source) -> Bool {
+        catalogEntries.first { $0.manifest.id == source.pluginID }?.manifest.isAPIOnly ?? false
+    }
     var recentRuns: [Run] = []
     var preferences = Preferences.default
 
@@ -239,8 +246,12 @@ final class AppModel {
             try await collector.authenticate(source: source)
             await reload()
             alert = AlertContent(
-                title: t("Signed in to %@", source.displayName),
-                message: t("The session is stored, so later collections will not ask for your two-factor code again. Use “Collect” to fetch your invoices now."))
+                title: isAPIOnly(source)
+                    ? t("%@ accepted these credentials", source.displayName)
+                    : t("Signed in to %@", source.displayName),
+                message: isAPIOnly(source)
+                    ? t("The keys work. Use “Collect” to fetch your invoices — this source needs no browser and no two-factor code.")
+                    : t("The session is stored, so later collections will not ask for your two-factor code again. Use “Collect” to fetch your invoices now."))
         } catch {
             alert = AlertContent(title: t("Sign-in to %@ failed", source.displayName),
                                  message: error.localizedDescription)
@@ -254,8 +265,12 @@ final class AppModel {
         await reload()
         if report.status == .needsSignIn {
             alert = AlertContent(
-                title: t("%@ needs you to sign in", source.displayName),
-                message: t("The stored session has expired. Use “Sign in” to open the portal, deal with two-factor authentication, then collect again."))
+                title: isAPIOnly(source)
+                    ? t("%@ refused these credentials", source.displayName)
+                    : t("%@ needs you to sign in", source.displayName),
+                message: isAPIOnly(source)
+                    ? t("The API keys are wrong, expired, or lack the rights this plugin needs. Check them in the source's settings.")
+                    : t("The stored session has expired. Use “Sign in” to open the portal, deal with two-factor authentication, then collect again."))
         } else if let error = report.error, !report.status.countsAsSuccess {
             alert = AlertContent(title: t("%@ failed", source.displayName), message: error)
         }

@@ -254,3 +254,15 @@
 "last run %@" = "dernière exécution %@";
 "never run" = "jamais exécutée";
 "· total %@" = "· total %@";
+"Check credentials" = "Vérifier les identifiants";
+"%@ accepted these credentials" = "%@ a accepté ces identifiants";
+"The keys work. Use “Collect” to fetch your invoices — this source needs no browser and no two-factor code." = "Les clés fonctionnent. Utilisez « Collecter » pour récupérer vos factures — cette source n'a besoin ni de navigateur ni de code de double authentification.";
+"%@ refused these credentials" = "%@ a refusé ces identifiants";
+"The API keys are wrong, expired, or lack the rights this plugin needs. Check them in the source's settings." = "Les clés d'API sont incorrectes, expirées, ou n'ont pas les droits dont ce plugin a besoin. Vérifiez-les dans les réglages de la source.";
+"API keys" = "Clés d'API";
+"This source talks to the supplier's API. No browser window, no password, no two-factor code — and collection can run without you." = "Cette source dialogue avec l'API du fournisseur. Aucune fenêtre de navigateur, aucun mot de passe, aucun code de double authentification — et la collecte peut tourner sans vous.";
+"Create the keys on the supplier's site" = "Créer les clés sur le site du fournisseur";
+"You will have to paste the keys again every time this source runs." = "Vous devrez recoller les clés à chaque exécution de cette source.";
+"Check the keys now" = "Vérifier les clés maintenant";
+"One authenticated call, to find out straight away whether the keys work and have the rights this plugin needs." = "Un appel authentifié, pour savoir tout de suite si les clés fonctionnent et disposent des droits dont ce plugin a besoin.";
+"API, no browser" = "API, sans navigateur";

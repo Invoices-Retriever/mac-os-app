@@ -60,12 +60,28 @@ struct AddSourceSheet: View {
                     }
                 }
 
+                if let api = manifest.api {
+                    Section(t("API keys")) {
+                        Label(t("This source talks to the supplier's API. No browser window, no password, no two-factor code — and collection can run without you."),
+                              systemImage: "key.horizontal")
+                            .font(.callout)
+                        if let url = api.credentialsURL.flatMap(URL.init(string:)) {
+                            // "Create an application key" is useless without
+                            // the address where you create it.
+                            Link(t("Create the keys on the supplier's site"), destination: url)
+                        }
+                    }
+                }
+
                 Section(t("Credentials")) {
                     Toggle(t("Remember them in my keychain"), isOn: $rememberCredentials)
                     if rememberCredentials {
                         Toggle(t("Require Touch ID each time they are used"), isOn: $requireBiometrics)
                             .disabled(!Keychain.biometricsAvailable())
                         Text(t("Credentials go to the macOS keychain, on this Mac only. They are never written to the database, the logs or a screenshot."))
+                            .font(.caption).foregroundStyle(.secondary)
+                    } else if manifest.isAPIOnly {
+                        Text(t("You will have to paste the keys again every time this source runs."))
                             .font(.caption).foregroundStyle(.secondary)
                     } else {
                         Text(t("You will sign in by hand in a browser window every time this source runs."))
@@ -74,8 +90,12 @@ struct AddSourceSheet: View {
                 }
 
                 Section {
-                    Toggle(t("Open the portal and sign in now"), isOn: $signInNow)
-                    Text(t("Signing in once stores the session, so later collections do not need your two-factor code again."))
+                    Toggle(manifest.isAPIOnly
+                           ? t("Check the keys now")
+                           : t("Open the portal and sign in now"), isOn: $signInNow)
+                    Text(manifest.isAPIOnly
+                         ? t("One authenticated call, to find out straight away whether the keys work and have the rights this plugin needs.")
+                         : t("Signing in once stores the session, so later collections do not need your two-factor code again."))
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }

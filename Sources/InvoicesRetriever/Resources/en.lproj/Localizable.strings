@@ -254,3 +254,15 @@
 "last run %@" = "last run %@";
 "never run" = "never run";
 "· total %@" = "· total %@";
+"Check credentials" = "Check credentials";
+"%@ accepted these credentials" = "%@ accepted these credentials";
+"The keys work. Use “Collect” to fetch your invoices — this source needs no browser and no two-factor code." = "The keys work. Use “Collect” to fetch your invoices — this source needs no browser and no two-factor code.";
+"%@ refused these credentials" = "%@ refused these credentials";
+"The API keys are wrong, expired, or lack the rights this plugin needs. Check them in the source's settings." = "The API keys are wrong, expired, or lack the rights this plugin needs. Check them in the source's settings.";
+"API keys" = "API keys";
+"This source talks to the supplier's API. No browser window, no password, no two-factor code — and collection can run without you." = "This source talks to the supplier's API. No browser window, no password, no two-factor code — and collection can run without you.";
+"Create the keys on the supplier's site" = "Create the keys on the supplier's site";
+"You will have to paste the keys again every time this source runs." = "You will have to paste the keys again every time this source runs.";
+"Check the keys now" = "Check the keys now";
+"One authenticated call, to find out straight away whether the keys work and have the rights this plugin needs." = "One authenticated call, to find out straight away whether the keys work and have the rights this plugin needs.";
+"API, no browser" = "API, no browser";

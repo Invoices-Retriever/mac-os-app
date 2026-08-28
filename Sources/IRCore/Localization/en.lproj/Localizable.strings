@@ -92,3 +92,11 @@
 "%@ no longer accepts this session" = "%@ no longer accepts this session";
 "could not reach %1$@: %2$@" = "could not reach %1$@: %2$@";
 "needs a newer version of the app (requires engine %1$@, this one is %2$@)" = "needs a newer version of the app (requires engine %1$@, this one is %2$@)";
+"the plugin declares OAuth2 but no token endpoint" = "the plugin declares OAuth2 but no token endpoint";
+"the plugin declares a signed API but no signature" = "the plugin declares a signed API but no signature";
+"the API refused these credentials (%@)" = "the API refused these credentials (%@)";
+"the API returned no access token" = "the API returned no access token";
+"the API did not return a usable time" = "the API did not return a usable time";
+"'%@' needs a browser, and this plugin talks to an API" = "'%@' needs a browser, and this plugin talks to an API";
+"this plugin talks to an API; there is no page to describe" = "this plugin talks to an API; there is no page to describe";
+"the API refused these credentials; check them in the source's settings" = "the API refused these credentials; check them in the source's settings";

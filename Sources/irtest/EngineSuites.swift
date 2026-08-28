@@ -781,3 +781,164 @@ func runAPISuites() async {
         }
     }
 }
+
+/// Plugins that talk to a supplier's API with the user's own credentials, and
+/// never open a browser.
+@MainActor
+func runAPITransportSuites() async {
+
+    /// The OVHcloud scheme, which is the reason the signature recipe exists.
+    func ovhSignature(algorithm: APISignature.Algorithm = .sha1) -> APISignature {
+        var recipe = APISignature(header: "X-Ovh-Signature", algorithm: algorithm, parts: [
+            "{{secret.applicationSecret}}", "{{secret.consumerKey}}",
+            "{{request.method}}", "{{request.url}}", "{{request.body}}", "{{api.time}}",
+        ])
+        recipe.prefix = "$1$"
+        recipe.separator = "+"
+        recipe.encoding = .hex
+        return recipe
+    }
+
+    func session(_ secrets: [String: String] = ["applicationSecret": "APP_SECRET",
+                                                "consumerKey": "CONSUMER_KEY"]) -> APISession {
+        APISession(sourceID: UUID(),
+                   transport: APITransport(baseURL: "https://eu.api.ovh.com/1.0"),
+                   policy: DomainPolicy(allowedDomains: ["eu.api.ovh.com"]),
+                   resolve: { template in
+                       var out = template
+                       for (key, value) in secrets {
+                           out = out.replacingOccurrences(of: "{{secret.\(key)}}", with: value)
+                       }
+                       return out
+                   })
+    }
+
+    await suite("API transport") {
+
+        await test("The OVHcloud signature matches an independently computed one") {
+            // Computed with python hashlib, not with this code, so the test
+            // cannot agree with a bug in the implementation.
+            let signed = try session().sign(ovhSignature(), method: "GET",
+                                            url: URL(string: "https://eu.api.ovh.com/1.0/me")!,
+                                            body: "", time: "1700000000")
+            expectEqual(signed, "$1$6ab9c7d6fcbbb9df417cd28c334a40b50d76b326")
+        }
+
+        await test("A body is part of what gets signed") {
+            let signed = try session().sign(ovhSignature(), method: "POST",
+                                            url: URL(string: "https://eu.api.ovh.com/1.0/me/bill")!,
+                                            body: "{\"a\":1}", time: "1700000000")
+            expectEqual(signed, "$1$cd67355e2c1b17120600f6b47a48567398f94b1f")
+        }
+
+        await test("A different secret gives a different signature") {
+            let other = try session(["applicationSecret": "WRONG", "consumerKey": "CONSUMER_KEY"])
+                .sign(ovhSignature(), method: "GET",
+                      url: URL(string: "https://eu.api.ovh.com/1.0/me")!,
+                      body: "", time: "1700000000")
+            expect(other != "$1$6ab9c7d6fcbbb9df417cd28c334a40b50d76b326")
+        }
+
+        await test("A browser step is refused before it can run") {
+            let s = session()
+            var refused = 0
+            for attempt in 0..<3 {
+                do {
+                    switch attempt {
+                    case 0: try await s.navigate(to: URL(string: "https://eu.api.ovh.com")!)
+                    case 1: _ = try await s.evaluate("1")
+                    default: _ = try await s.printToPDF()
+                    }
+                } catch { refused += 1 }
+            }
+            expectEqual(refused, 3)
+        }
+
+        await test("The sandbox applies to API calls") {
+            let s = session()
+            do {
+                _ = try await s.requestJSON(url: URL(string: "https://evil.example.com/x")!,
+                                            method: "GET", headers: [:], body: nil,
+                                            timeout: .seconds(5))
+                expect(false, "an undeclared host must not be reachable")
+            } catch let error as IRError {
+                guard case .domainNotAllowed = error else {
+                    expect(false, "wrong error: \(error)"); return
+                }
+            }
+        }
+    }
+
+    await suite("API plugin validation") {
+
+        let manifest = """
+        {"id":"ovh-api","name":"OVH API","version":"1.0.0","engine":">=1.2.0",
+         "allowedDomains":["eu.api.ovh.com"],
+         "configSchema":{"applicationSecret":{"type":"password","label":"S","required":true}},
+         "api":{"baseUrl":"https://eu.api.ovh.com/1.0",
+                "auth":{"type":"signature",
+                        "signature":{"header":"X-Ovh-Signature","algorithm":"sha1",
+                                     "parts":["{{secret.applicationSecret}}","{{request.url}}"]}}},
+         "checkAuth":[{"action":"apiRequest","url":"/me","assignTo":"me"}],
+         "getDocuments":[{"action":"apiRequest","url":"/me/bill","assignTo":"ids"},
+                         {"action":"extractAll","items":"{{ids}}","forEach":[
+                           {"action":"downloadPdf","url":"{{item.pdfUrl}}",
+                            "document":{"id":"{{item.billId}}","date":"{{item.date}}"}}]}]}
+        """
+
+        await test("An API plugin validates without a browser verification step") {
+            let m = try PluginManifest.decode(from: Data(manifest.utf8))
+            let report = PluginValidator.validate(m)
+            expect(report.isValid, "\(report.errors.map(\.message))")
+            expect(m.isAPIOnly)
+            expectEqual(m.requiredEngineFloor, SemVer(1, 2, 0))
+        }
+
+        await test("A credential used only by the signature counts as used") {
+            // It appears in no step at all, so a scan of steps alone would
+            // report it as collected and never used, and tell the author to
+            // stop asking for it.
+            let m = try PluginManifest.decode(from: Data(manifest.utf8))
+            expect(!PluginValidator.validate(m).warnings.contains {
+                $0.message.contains("never used")
+            })
+        }
+
+        await test("A browser step in an API plugin is an error") {
+            var object = try JSONSerialization.jsonObject(with: Data(manifest.utf8)) as! [String: Any]
+            object["getDocuments"] = [["action": "click", "selector": "#a"]]
+            let m = try PluginManifest.decode(from: JSONSerialization.data(withJSONObject: object))
+            let report = PluginValidator.validate(m)
+            expect(!report.isValid)
+            expect(report.errors.contains { $0.message.contains("needs a browser") })
+        }
+
+        await test("The API host must be declared in the sandbox") {
+            var object = try JSONSerialization.jsonObject(with: Data(manifest.utf8)) as! [String: Any]
+            object["allowedDomains"] = ["example.com"]
+            let m = try PluginManifest.decode(from: JSONSerialization.data(withJSONObject: object))
+            expect(!PluginValidator.validate(m).isValid)
+        }
+
+        await test("A credential in a plain field is refused") {
+            // It would sit in the database in clear rather than the Keychain.
+            var object = try JSONSerialization.jsonObject(with: Data(manifest.utf8)) as! [String: Any]
+            object["configSchema"] = ["applicationSecret": ["type": "string", "label": "S", "required": true]]
+            let m = try PluginManifest.decode(from: JSONSerialization.data(withJSONObject: object))
+            let report = PluginValidator.validate(m)
+            expect(!report.isValid)
+            expect(report.errors.contains { $0.message.contains("not a password field") })
+        }
+
+        await test("An HMAC signature without a key is refused") {
+            var object = try JSONSerialization.jsonObject(with: Data(manifest.utf8)) as! [String: Any]
+            var api = object["api"] as! [String: Any]
+            var auth = api["auth"] as! [String: Any]
+            var signature = auth["signature"] as! [String: Any]
+            signature["algorithm"] = "hmacSha256"
+            auth["signature"] = signature; api["auth"] = auth; object["api"] = api
+            let m = try PluginManifest.decode(from: JSONSerialization.data(withJSONObject: object))
+            expect(!PluginValidator.validate(m).isValid)
+        }
+    }
+}

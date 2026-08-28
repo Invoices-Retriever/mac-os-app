@@ -242,10 +242,7 @@ public actor StepExecutor {
             }
 
         case .apiRequest:
-            let resolved = try context.resolve(step.url ?? "")
-            guard let url = URL(string: resolved) else {
-                throw IRError.assertionFailed("'\(resolved)' is not a URL")
-            }
+            let url = try absoluteURL(try context.resolve(step.url ?? ""))
             try check(url)
             await rateLimiter.waitForTurn()
 
@@ -307,10 +304,7 @@ public actor StepExecutor {
         // MARK: Documents
 
         case .downloadPdf:
-            let resolved = try context.resolve(step.url ?? "")
-            guard let url = URL(string: resolved) else {
-                throw IRError.assertionFailed("'\(resolved)' is not a URL")
-            }
+            let url = try absoluteURL(try context.resolve(step.url ?? ""))
             try check(url)
             await rateLimiter.waitForTurn()
             let data = try await session.download(from: url, timeout: timeout(for: step))
@@ -442,6 +436,24 @@ public actor StepExecutor {
     /// it. Belt and braces: this gives the user a clear error naming the host
     /// instead of an opaque navigation failure, and it keeps working if a
     /// future driver's enforcement has a gap.
+    /// Resolves a step's URL, allowing a relative path when the plugin
+    /// declares an API base. Writing `/me/bill` in every step, with the host
+    /// stated once, is both easier to read and harder to get wrong than
+    /// repeating an absolute URL fifteen times.
+    private func absoluteURL(_ string: String) throws -> URL {
+        if let base = context.manifest.api?.baseURL, !string.contains("://") {
+            guard let baseURL = URL(string: base),
+                  let url = URL(string: string, relativeTo: baseURL)?.absoluteURL else {
+                throw IRError.assertionFailed("'\(string)' is not a URL")
+            }
+            return url
+        }
+        guard let url = URL(string: string) else {
+            throw IRError.assertionFailed("'\(string)' is not a URL")
+        }
+        return url
+    }
+
     private func check(_ url: URL) throws {
         guard policy.allows(url: url) else {
             throw IRError.domainNotAllowed(host: url.host ?? url.absoluteString, allowed: policy.patterns)

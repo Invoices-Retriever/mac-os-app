@@ -12,13 +12,16 @@ public struct PluginManifest: Codable, Sendable, Identifiable, Hashable {
     /// 1.1.0 added `apiRequest` and `extractAll` over a JSON list. A plugin
     /// using either must say `">=1.1.0"`, so an application that predates them
     /// skips it with "update the app" rather than "invalid plugin".
-    public static let engineVersion = SemVer(1, 1, 0)
+    /// 1.2.0 added `api`: a plugin that authenticates with the user's own API
+    /// credentials and never opens a browser.
+    public static let engineVersion = SemVer(1, 2, 0)
 
     /// The engine version each piece of vocabulary first appeared in. Anything
     /// absent from here has been there since 1.0.0.
     public static let featureVersions: [String: SemVer] = [
         "apiRequest": SemVer(1, 1, 0),
         "extractAll.items": SemVer(1, 1, 0),
+        "api": SemVer(1, 2, 0),
     ]
 
     public var schemaURL: String?
@@ -36,6 +39,9 @@ public struct PluginManifest: Codable, Sendable, Identifiable, Hashable {
     public var status: PluginStatus?
     public var configSchema: [String: ConfigField]?
     public var autofill: AutofillPolicy?
+    /// Present when the plugin talks to an API with its own credentials
+    /// instead of driving a browser. See `APITransport`.
+    public var api: APITransport?
 
     public var checkAuth: [PluginStep]
     public var startAuth: [PluginStep]?
@@ -45,7 +51,7 @@ public struct PluginManifest: Codable, Sendable, Identifiable, Hashable {
     private enum CodingKeys: String, CodingKey {
         case schemaURL = "$schema"
         case id, name, version, description, homepage, maintainers, country, tags
-        case engine, allowedDomains, usesJs, status, configSchema, autofill
+        case engine, allowedDomains, usesJs, status, configSchema, autofill, api
         case checkAuth, startAuth, getConfigOptions, getDocuments
     }
 
@@ -63,6 +69,12 @@ public struct PluginManifest: Codable, Sendable, Identifiable, Hashable {
     public var semanticVersion: SemVer { SemVer(version) ?? SemVer(0, 0, 0) }
     public var domainPolicy: DomainPolicy { DomainPolicy(allowedDomains: allowedDomains) }
     public var effectiveStatus: PluginStatus { status ?? .active }
+
+    /// True when this plugin never opens a browser. Worth surfacing: it is the
+    /// difference between "sign in on the portal, deal with two-factor" and
+    /// "paste two keys once", and it decides whether collection can run
+    /// unattended.
+    public var isAPIOnly: Bool { api != nil }
 
     /// True when the plugin contains a `runJs` step anywhere, regardless of
     /// what it declares. The declaration is a contributor convenience; this is

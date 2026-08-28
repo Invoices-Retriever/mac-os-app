@@ -144,6 +144,12 @@ private struct CatalogCard: View {
                 if entry.manifest.containsArbitraryJavaScript {
                     Badge(text: t("Runs JavaScript"), colour: .purple, symbol: "curlybraces")
                 }
+                // Two entries for the same supplier are common now — one
+                // driving the portal, one calling the API — and this is the
+                // difference that decides which one someone wants.
+                if entry.manifest.isAPIOnly {
+                    Badge(text: t("API, no browser"), colour: .green, symbol: "key.horizontal")
+                }
                 if entry.provenance == .local {
                     Badge(text: t("Local copy"), colour: .blue, symbol: "hammer")
                 } else if entry.provenance == .sideloaded {

@@ -118,11 +118,15 @@ private struct SourceRow: View {
                 ProgressView().controlSize(.small)
                 Button(t("Stop")) { Task { await model.cancel(source) } }
             } else {
+                // An API source has no portal to open: the button checks that
+                // the keys still work, which is a different promise and needs
+                // to read as one.
+                let label = model.isAPIOnly(source) ? t("Check credentials") : t("Sign in")
                 if source.lastRunStatus == .needsSignIn {
-                    Button(t("Sign in")) { Task { await model.authenticate(source) } }
+                    Button(label) { Task { await model.authenticate(source) } }
                         .buttonStyle(.borderedProminent)
                 } else {
-                    Button(t("Sign in")) { Task { await model.authenticate(source) } }
+                    Button(label) { Task { await model.authenticate(source) } }
                 }
                 Button(t("Collect")) { Task { await model.collect(source) } }
                     .disabled(!source.isEnabled)

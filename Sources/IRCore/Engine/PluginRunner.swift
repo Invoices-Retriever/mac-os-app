@@ -94,7 +94,17 @@ public struct PluginRunner: Sendable {
                 incrementalCutoff: source.incrementalCutoff())
 
             let policy = manifest.domainPolicy
-            let created = try await sessionFactory.makeSession(sourceID: source.id, policy: policy)
+            // A plugin with its own API credentials has nothing to drive: no
+            // window, no cookies, no interactive sign-in. The factory is for
+            // portals, and calling it here would open a browser nobody uses.
+            let created: any BrowserSession
+            if let transport = manifest.api {
+                created = APISession(sourceID: source.id, transport: transport, policy: policy,
+                                     resolve: { [context] in try context.resolve($0) },
+                                     logger: logger)
+            } else {
+                created = try await sessionFactory.makeSession(sourceID: source.id, policy: policy)
+            }
             session = created
 
             let executor = StepExecutor(session: created, context: context, policy: policy,
@@ -108,6 +118,13 @@ public struct PluginRunner: Sendable {
                         source: source.id, run: runID)
 
             if !signedIn {
+                // There is no sign-in flow to fall back on: the credentials
+                // either work or they do not, and asking the user to "sign in"
+                // would open a window that cannot help them.
+                if manifest.isAPIOnly {
+                    throw IRError.authenticationFailed(core(
+                        "the API refused these credentials; check them in the source's settings"))
+                }
                 switch mode {
                 case .collect:
                     // F3.4: do not hijack the user's screen in the middle of a

@@ -92,3 +92,11 @@
 "%@ no longer accepts this session" = "%@ n'accepte plus cette session";
 "could not reach %1$@: %2$@" = "impossible d'atteindre %1$@ : %2$@";
 "needs a newer version of the app (requires engine %1$@, this one is %2$@)" = "nécessite une version plus récente de l'application (moteur %1$@ requis, celui-ci est %2$@)";
+"the plugin declares OAuth2 but no token endpoint" = "le plugin déclare OAuth2 mais aucun point de jeton";
+"the plugin declares a signed API but no signature" = "le plugin déclare une API signée mais aucune signature";
+"the API refused these credentials (%@)" = "l'API a refusé ces identifiants (%@)";
+"the API returned no access token" = "l'API n'a retourné aucun jeton d'accès";
+"the API did not return a usable time" = "l'API n'a pas retourné d'heure exploitable";
+"'%@' needs a browser, and this plugin talks to an API" = "« %@ » nécessite un navigateur, or ce plugin dialogue avec une API";
+"this plugin talks to an API; there is no page to describe" = "ce plugin dialogue avec une API ; il n'y a aucune page à décrire";
+"the API refused these credentials; check them in the source's settings" = "l'API a refusé ces identifiants ; vérifiez-les dans les réglages de la source";
