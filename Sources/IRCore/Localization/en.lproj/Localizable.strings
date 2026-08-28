@@ -119,3 +119,9 @@
 "Total: %@" = "Total: %@";
 "no HTTP response from %@" = "no HTTP response from %@";
 "Paperless answered %1$@: %2$@" = "Paperless answered %1$@: %2$@";
+"Copies the PDFs into a folder, organised the way your library is. This is what you hand to your accountant." = "Copies the PDFs into a folder, organised the way your library is. This is what you hand to your accountant.";
+"One row per document, for reconciliation in a spreadsheet." = "One row per document, for reconciliation in a spreadsheet.";
+"The same register as JSON, for a script." = "The same register as JSON, for a script.";
+"Posts each document to a URL as multipart: the metadata as JSON, the PDF as a file." = "Posts each document to a URL as multipart: the metadata as JSON, the PDF as a file.";
+"Opens a message with the invoices attached. Nothing is sent: you read it and press Send yourself." = "Opens a message with the invoices attached. Nothing is sent: you read it and press Send yourself.";
+"Uploads each PDF into a Paperless-ngx instance, with its date and title already filled in." = "Uploads each PDF into a Paperless-ngx instance, with its date and title already filled in.";

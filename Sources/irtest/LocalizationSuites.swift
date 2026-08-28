@@ -190,7 +190,7 @@ func runInterfaceCatalogueSuites() async {
 
         await test("Nothing was left untranslated by copying the English through") {
             // A handful legitimately match: proper nouns, and "Webhook".
-            let identical = ["Bearer …", "Catalogue", "Date", "E-mail", "OK", "Organisation",
+            let identical = ["Bearer …", "Catalogue", "Date", "E-mail", "Exports", "OK", "Organisation",
                              "Paperless-ngx", "Plugin", "Plugins", "Provider", "SHA-256",
                              "Source", "Sources", "Total", "Webhook", "· total %@"]
             let english = table("en"), french = table("fr")

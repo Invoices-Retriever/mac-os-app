@@ -312,6 +312,69 @@ public struct Store: Sendable {
     /// nothing in it yet, which needs a first step, and a filter that happens
     /// to match nothing, which needs widening. Counting in SQL rather than
     /// fetching every row to call `.count` on it.
+    // MARK: - Export destinations
+
+    public func upsert(_ destination: ExportDestination) async throws {
+        try await database.run("""
+            INSERT INTO export_destination
+                (id, entity_id, kind, name, config, runs_automatically, created_at,
+                 last_run_at, last_succeeded, last_detail, documents_sent)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                kind = excluded.kind,
+                name = excluded.name,
+                config = excluded.config,
+                runs_automatically = excluded.runs_automatically,
+                last_run_at = excluded.last_run_at,
+                last_succeeded = excluded.last_succeeded,
+                last_detail = excluded.last_detail,
+                documents_sent = excluded.documents_sent
+            """, [
+                SQLValue(destination.id), SQLValue(destination.entityID),
+                .text(destination.kind.rawValue), .text(destination.name),
+                SQLValue(json: destination.config), SQLValue(destination.runsAutomatically),
+                SQLValue(destination.createdAt), SQLValue(destination.lastRunAt),
+                destination.lastSucceeded.map { SQLValue($0) } ?? .null,
+                SQLValue(destination.lastDetail), .integer(destination.documentsSent),
+            ])
+    }
+
+    public func exportDestinations(entityID: UUID? = nil) async throws -> [ExportDestination] {
+        var sql = "SELECT * FROM export_destination"
+        var bindings: [SQLValue] = []
+        if let entityID {
+            sql += " WHERE entity_id = ?"
+            bindings.append(SQLValue(entityID))
+        }
+        sql += " ORDER BY created_at"
+        return try await database.query(sql, bindings).compactMap(Self.exportDestination)
+    }
+
+    public func deleteExportDestination(id: UUID) async throws {
+        try await database.run("DELETE FROM export_destination WHERE id = ?", [SQLValue(id)])
+    }
+
+    private static func exportDestination(_ row: Row) -> ExportDestination? {
+        guard let id = row.uuid("id"), let entityID = row.uuid("entity_id"),
+              let rawKind = row.string("kind"),
+              let kind = ExportDestinationKind(rawValue: rawKind),
+              let name = row.string("name"),
+              let createdAt = row.date("created_at") else { return nil }
+
+        var destination = ExportDestination(id: id, entityID: entityID, kind: kind,
+                                            name: name, createdAt: createdAt)
+        if let raw = row.string("config"), let data = raw.data(using: .utf8),
+           let config = try? JSONDecoder().decode([String: String].self, from: data) {
+            destination.config = config
+        }
+        destination.runsAutomatically = row.bool("runs_automatically")
+        destination.lastRunAt = row.date("last_run_at")
+        destination.lastSucceeded = row.int("last_succeeded").map { $0 != 0 }
+        destination.lastDetail = row.string("last_detail")
+        destination.documentsSent = row.int("documents_sent") ?? 0
+        return destination
+    }
+
     public func totalDocumentCount() async throws -> Int {
         try await database.query("SELECT COUNT(*) AS n FROM document").first?.int("n") ?? 0
     }

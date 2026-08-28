@@ -34,6 +34,7 @@ struct RootView: View {
                 switch model.selectedSection {
                 case .sources: SourcesView()
                 case .library: LibraryView()
+                case .exports: ExportsView()
                 case .catalog: CatalogView()
                 case .runs: RunsView()
                 case .developer: DeveloperView()

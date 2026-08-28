@@ -34,6 +34,22 @@
 			<string>%d already sent</string>
 		</dict>
 	</dict>
+	<key>%d destination</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d destination</string>
+			<key>other</key>
+			<string>%d destinations</string>
+		</dict>
+	</dict>
 	<key>%d document</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>
@@ -64,22 +80,6 @@
 			<string>%d document exported</string>
 			<key>other</key>
 			<string>%d documents exported</string>
-		</dict>
-	</dict>
-	<key>%d documents in the current view</key>
-	<dict>
-		<key>NSStringLocalizedFormatKey</key>
-		<string>%#@count@</string>
-		<key>count</key>
-		<dict>
-			<key>NSStringFormatSpecTypeKey</key>
-			<string>NSStringPluralRuleType</string>
-			<key>NSStringFormatValueTypeKey</key>
-			<string>d</string>
-			<key>one</key>
-			<string>%d document in the current view</string>
-			<key>other</key>
-			<string>%d documents in the current view</string>
 		</dict>
 	</dict>
 	<key>%d failed</key>
@@ -210,6 +210,22 @@
 			<string>%d rows</string>
 		</dict>
 	</dict>
+	<key>%d runs automatically</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d runs automatically</string>
+			<key>other</key>
+			<string>%d run automatically</string>
+		</dict>
+	</dict>
 	<key>%d seen</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>
@@ -336,22 +352,6 @@
 			<string>%d withdrawn</string>
 			<key>other</key>
 			<string>%d withdrawn</string>
-		</dict>
-	</dict>
-	<key>Every one of the %d selected documents will be sent.</key>
-	<dict>
-		<key>NSStringLocalizedFormatKey</key>
-		<string>%#@count@</string>
-		<key>count</key>
-		<dict>
-			<key>NSStringFormatSpecTypeKey</key>
-			<string>NSStringPluralRuleType</string>
-			<key>NSStringFormatValueTypeKey</key>
-			<string>d</string>
-			<key>one</key>
-			<string>Every one of the %d selected documents will be sent.</string>
-			<key>other</key>
-			<string>Every one of the %d selected documents will be sent.</string>
 		</dict>
 	</dict>
 	<key>Look back %d days on the first run</key>

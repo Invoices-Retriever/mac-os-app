@@ -11,7 +11,6 @@ struct LibraryView: View {
     @State private var period: Period = .thisYear
     @State private var showingReviewOnly = false
     @State private var previewURL: URL?
-    @State private var exporting = false
 
     enum Period: String, CaseIterable, Identifiable {
         case thisMonth, lastMonth, thisQuarter, thisYear, everything
@@ -71,10 +70,24 @@ struct LibraryView: View {
         HSplitView {
             VStack(spacing: 0) {
                 PageHeader(title: t("Invoices"), subtitle: summaryLine) {
-                    Button { exporting = true } label: {
-                        Label(t("Export…"), systemImage: "square.and.arrow.up")
+                    // The destinations the user has already connected, one
+                    // click each. Configuring one is a different job and lives
+                    // on its own page rather than in a dialog re-filled every
+                    // month.
+                    Menu {
+                        ForEach(model.exportDestinations) { destination in
+                            Button(destination.name) {
+                                Task { await model.run(destination, documents: model.documents) }
+                            }
+                            .disabled(!destination.isComplete(hasSecret: model.hasSecret(destination)))
+                        }
+                        if !model.exportDestinations.isEmpty { Divider() }
+                        Button(t("Manage exports…")) { model.selectedSection = .exports }
+                    } label: {
+                        Label(t("Send to…"), systemImage: "square.and.arrow.up")
                     }
-                    .controlSize(.large)
+                    .menuStyle(.borderlessButton)
+                    .frame(width: 128)
                     .disabled(model.documents.isEmpty)
                 }
                 filters
@@ -108,9 +121,6 @@ struct LibraryView: View {
                     Label(t("Import PDFs…"), systemImage: "plus")
                 }
             }
-        }
-        .sheet(isPresented: $exporting) {
-            ExportSheet(documents: model.documents).environment(model)
         }
     }
 

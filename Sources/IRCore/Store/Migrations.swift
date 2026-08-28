@@ -155,6 +155,30 @@ public enum Migrations {
         Migration(version: 3, name: "page outline captured on failure", sql: """
         ALTER TABLE run ADD COLUMN outline_path TEXT;
         """),
+        Migration(version: 4, name: "saved export destinations", sql: """
+        -- F8.5. A destination configured once and reused, rather than a dialog
+        -- re-filled every month. `config` is JSON because what a destination
+        -- needs differs by kind — a folder path, a URL, a list of recipients —
+        -- and columns for the union of those would be mostly NULL.
+        --
+        -- Nothing secret is in here: a webhook's Authorization header and a
+        -- Paperless token go to the keychain under the destination's id, the
+        -- same rule the whole application follows.
+        CREATE TABLE export_destination (
+            id             TEXT PRIMARY KEY NOT NULL,
+            entity_id      TEXT NOT NULL REFERENCES entity(id) ON DELETE CASCADE,
+            kind           TEXT NOT NULL,
+            name           TEXT NOT NULL,
+            config         TEXT NOT NULL DEFAULT '{}',
+            runs_automatically INTEGER NOT NULL DEFAULT 0,
+            created_at     TEXT NOT NULL,
+            last_run_at    TEXT,
+            last_succeeded INTEGER,
+            last_detail    TEXT,
+            documents_sent INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX idx_export_destination_entity ON export_destination(entity_id);
+        """),
     ]
 
     public static func migrate(_ database: Database) async throws {

@@ -24,6 +24,8 @@ final class AppModel {
     var selectedSection: RootSection = .sources
     /// Unfiltered, so an empty list can say which kind of empty it is.
     var totalDocumentCount = 0
+    var exportDestinations: [ExportDestination] = []
+    var runningDestinationIDs: Set<UUID> = []
 
     /// The plugin behind a source, when it is installed.
     func manifest(for source: Source) -> PluginManifest? {
@@ -188,6 +190,7 @@ final class AppModel {
             sourceNameBox?.update(sourceNames)
             documents = try await store.documents(filter: documentFilter)
             totalDocumentCount = try await store.totalDocumentCount()
+            exportDestinations = try await store.exportDestinations(entityID: entity.id)
             recentRuns = try await store.runs(limit: 60)
             catalogEntries = await catalog.all()
         } catch {
@@ -320,6 +323,7 @@ final class AppModel {
         defer { runningSourceIDs.remove(source.id) }
         let report = await collector.collect(source: source)
         await reload()
+        if !report.newDocuments.isEmpty { await runAutomaticExports() }
         if report.status == .needsSignIn {
             alert = AlertContent(
                 title: isAPIOnly(source)
@@ -344,6 +348,10 @@ final class AppModel {
                 }
             }
             finishBatch(batch)
+            if batch.reports.contains(where: { !$0.newDocuments.isEmpty }) {
+                await reload()
+                await runAutomaticExports()
+            }
         } catch {
             alert = AlertContent(title: t("Collection failed"), message: error.localizedDescription)
         }
@@ -446,6 +454,132 @@ final class AppModel {
     }
 
     // MARK: - Export
+
+    // MARK: - Saved export destinations
+
+    func saveDestination(_ destination: ExportDestination, secret: String?) async {
+        guard let store else { return }
+        do {
+            try await store.upsert(destination)
+            if destination.needsSecret, let secret {
+                // Empty means "leave what is stored" — the field comes up blank
+                // when editing, because a secret is never read back to show it.
+                if !secret.isEmpty {
+                    try Keychain().set(secret, account: destination.secretAccount)
+                }
+            }
+            await reload()
+        } catch {
+            alert = AlertContent(title: t("Could not save this destination"),
+                                 message: error.localizedDescription)
+        }
+    }
+
+    func deleteDestination(_ destination: ExportDestination) async {
+        guard let store else { return }
+        // The secret goes with it: a destination the user removed must not
+        // leave a token behind in the keychain (F4.4 applied here too).
+        try? Keychain().delete(account: destination.secretAccount)
+        try? await store.deleteExportDestination(id: destination.id)
+        await reload()
+    }
+
+    func hasSecret(_ destination: ExportDestination) -> Bool {
+        guard destination.needsSecret else { return true }
+        return (try? Keychain().get(account: destination.secretAccount))??.isEmpty == false
+    }
+
+    /// Turns a saved destination into something that can move a document.
+    /// Returns nil when it is not configured enough to run, which is the same
+    /// question `isComplete` answers for the interface.
+    func makeExporter(for destination: ExportDestination) -> (any Exporter)? {
+        let names = sourceNames
+        let secret = (try? Keychain().get(account: destination.secretAccount)) ?? nil
+
+        switch destination.kind {
+        case .folder:
+            guard let path = destination.config["path"], !path.isEmpty else { return nil }
+            return FolderExporter(root: URL(fileURLWithPath: path),
+                                  folderTemplate: NamingTemplate(pattern: preferences.folderPattern),
+                                  fileTemplate: NamingTemplate(pattern: preferences.fileNamePattern),
+                                  sourceNames: names)
+        case .csv, .json:
+            guard let path = destination.config["path"], !path.isEmpty else { return nil }
+            return RegisterExporter(format: destination.kind == .csv ? .csv : .json,
+                                    outputURL: URL(fileURLWithPath: path), sourceNames: names)
+        case .webhook:
+            guard let url = URL(string: destination.config["url"] ?? "") else { return nil }
+            var headers: [String: String] = [:]
+            if let secret, !secret.isEmpty { headers["Authorization"] = secret }
+            return WebhookExporter(url: url, headers: headers, sourceNames: names)
+        case .paperless:
+            guard let url = URL(string: destination.config["url"] ?? ""),
+                  let secret, !secret.isEmpty else { return nil }
+            let tags = (destination.config["tags"] ?? "")
+                .split(separator: ",").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
+            return PaperlessExporter(baseURL: url, token: secret, tagIDs: tags, sourceNames: names)
+        case .email:
+            let recipients = (destination.config["recipients"] ?? "")
+                .split(whereSeparator: { $0 == "," || $0 == ";" || $0 == " " })
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+            return EmailExporter(recipients: recipients, entityName: entity?.name)
+        }
+    }
+
+    /// Sends the documents currently in view to a saved destination, and
+    /// records how it went on the destination itself — which is what its card
+    /// shows.
+    @discardableResult
+    func run(_ destination: ExportDestination,
+             documents: [InvoiceDocument],
+             force: Bool = false,
+             announce: Bool = true) async -> ExportService.Report? {
+        guard let store, let exporter = makeExporter(for: destination) else {
+            if announce {
+                alert = AlertContent(title: t("%@ is not ready", destination.name),
+                                     message: t("Finish setting this destination up before running it."))
+            }
+            return nil
+        }
+        runningDestinationIDs.insert(destination.id)
+        defer { runningDestinationIDs.remove(destination.id) }
+
+        let report = await exportService.export(documents, to: exporter, force: force)
+
+        var saved = destination
+        saved.lastRunAt = Date()
+        saved.lastSucceeded = report.failed.isEmpty
+        saved.documentsSent += report.exportedCount
+        saved.lastDetail = report.failed.first?.message ?? report.summary
+        try? await store.upsert(saved)
+        await reload()
+
+        if announce {
+            var message = tn("%d documents exported", report.exportedCount)
+            if !report.skipped.isEmpty { message += ", " + tn("%d already sent", report.skipped.count) }
+            if !report.failed.isEmpty { message += ", " + tn("%d failed", report.failed.count) }
+            if let summary = report.summary { message += ".\n" + summary }
+            if let first = report.failed.first { message += "\n" + t("First failure: %@", first.message) }
+            alert = AlertContent(title: t("Export to %@", destination.name), message: message)
+        }
+        return report
+    }
+
+    /// Called after a collection. Only destinations the user switched on, only
+    /// kinds that can run unattended, and only documents that are actually new
+    /// — the idempotence record does the rest.
+    func runAutomaticExports() async {
+        let automatic = exportDestinations.filter {
+            $0.runsAutomatically && $0.kind.canRunAutomatically && $0.isComplete(hasSecret: hasSecret($0))
+        }
+        guard !automatic.isEmpty, !documents.isEmpty else { return }
+        for destination in automatic {
+            // Quietly: this happens after a collection the user started, and an
+            // alert per destination would bury the collection's own result.
+            await run(destination, documents: documents, announce: false)
+        }
+    }
 
     func export(_ documents: [InvoiceDocument], to exporter: any Exporter, force: Bool) async {
         let report = await exportService.export(documents, to: exporter, force: force)

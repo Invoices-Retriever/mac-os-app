@@ -1222,3 +1222,70 @@ func runExportDestinationSuites() async {
         }
     }
 }
+
+/// Destinations the user configures once and keeps.
+@MainActor
+func runSavedDestinationSuites() async {
+    let entity = UUID()
+
+    func destination(_ kind: ExportDestinationKind, _ config: [String: String]) -> ExportDestination {
+        ExportDestination(entityID: entity, kind: kind, name: "D", config: config)
+    }
+
+    await suite("Saved export destinations") {
+
+        await test("A destination knows when it is not finished") {
+            expect(!destination(.folder, [:]).isComplete(hasSecret: true))
+            expect(destination(.folder, ["path": "/tmp/x"]).isComplete(hasSecret: true))
+
+            expect(!destination(.webhook, ["url": "not a url"]).isComplete(hasSecret: true))
+            expect(destination(.webhook, ["url": "https://x.example.com"]).isComplete(hasSecret: false),
+                   "a webhook's Authorization header is optional")
+
+            // Paperless cannot work without its token, so a missing one is not
+            // "configured, will fail later" — it is unfinished.
+            expect(!destination(.paperless, ["url": "https://p.example.com"]).isComplete(hasSecret: false))
+            expect(destination(.paperless, ["url": "https://p.example.com"]).isComplete(hasSecret: true))
+
+            // A recipient can be typed in the mail window.
+            expect(destination(.email, [:]).isComplete(hasSecret: true))
+        }
+
+        await test("Only kinds with a secret get a keychain item") {
+            expect(destination(.paperless, [:]).needsSecret)
+            expect(destination(.webhook, [:]).needsSecret)
+            for kind in [ExportDestinationKind.folder, .csv, .json, .email] {
+                expect(!destination(kind, [:]).needsSecret, "\(kind) has no secret to keep")
+            }
+        }
+
+        await test("E-mail never runs unattended") {
+            // It opens a window someone has to look at; doing that at 3am
+            // during a scheduled collection would be a bug, not a feature.
+            expect(!ExportDestinationKind.email.canRunAutomatically)
+            for kind in [ExportDestinationKind.folder, .csv, .json, .webhook, .paperless] {
+                expect(kind.canRunAutomatically, "\(kind) should be able to run on its own")
+            }
+        }
+
+        await test("Each destination keeps its own keychain account") {
+            let a = destination(.paperless, [:]), b = destination(.paperless, [:])
+            expect(a.secretAccount != b.secretAccount,
+                   "two instances must not share one token")
+            expect(a.secretAccount.hasPrefix("export."), a.secretAccount)
+        }
+
+        await test("A new destination does not run automatically until asked") {
+            expect(!destination(.folder, ["path": "/tmp/x"]).runsAutomatically,
+                   "the first run is one the user should watch")
+        }
+
+        await test("Every kind has a symbol and an explanation") {
+            for kind in ExportDestinationKind.allCases {
+                expect(!kind.symbol.isEmpty, "\(kind)")
+                expect(!kind.explanation.isEmpty, "\(kind)")
+                expect(!kind.displayName.isEmpty, "\(kind)")
+            }
+        }
+    }
+}
