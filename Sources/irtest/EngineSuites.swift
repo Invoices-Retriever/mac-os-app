@@ -1565,3 +1565,118 @@ func runExportFailureSuites() async {
         }
     }
 }
+
+/// One invoice, one message — the shape an accounting intake address needs.
+@MainActor
+func runPerInvoiceMailSuites() async {
+
+    final class RecordingTransport: SMTPTransport, @unchecked Sendable {
+        private let lock = NSLock()
+        private var replies: [SMTPReply] = []
+        private(set) var conversations = 0
+        private(set) var written: [String] = []
+
+        func open() async throws {
+            lock.withLock {
+                conversations += 1
+                // A whole successful exchange, replayed for each connection.
+                replies = [SMTPReply(code: 220, lines: ["hi"]),
+                           SMTPReply(code: 250, lines: ["ok", "STARTTLS", "AUTH PLAIN"]),
+                           SMTPReply(code: 220, lines: ["go"]),
+                           SMTPReply(code: 250, lines: ["ok", "AUTH PLAIN"]),
+                           SMTPReply(code: 235, lines: ["ok"]),
+                           SMTPReply(code: 250, lines: ["ok"]), SMTPReply(code: 250, lines: ["ok"]),
+                           SMTPReply(code: 354, lines: ["go"]), SMTPReply(code: 250, lines: ["queued"]),
+                           SMTPReply(code: 221, lines: ["bye"])]
+            }
+        }
+        func write(_ line: String) async throws { lock.withLock { written.append(line) } }
+        func read() async throws -> SMTPReply {
+            lock.withLock {
+                replies.isEmpty ? SMTPReply(code: 500, lines: ["script ended"]) : replies.removeFirst()
+            }
+        }
+        func startTLS() async throws {}
+        func close() async {}
+    }
+
+    func document(_ issuer: String, _ number: String) -> InvoiceDocument {
+        var d = InvoiceDocument(entityID: UUID(), sha256: "s", relativePath: "a/\(number).pdf", byteSize: 8)
+        d.issuer = issuer
+        d.number = number
+        d.issuedOn = InvoiceDateParser.parse("2026-03-31")
+        d.total = Money(cents: 12000, currency: "EUR")
+        return d
+    }
+
+    let settings = SMTPSettings(host: "smtp.example.com", port: 587, security: .startTLS,
+                                username: "me@example.com", password: "pw", from: "me@example.com")
+
+    await suite("One invoice per message") {
+
+        await test("The subject names the one invoice, not a batch") {
+            let subject = EmailMessage.subject(for: document("OVHcloud", "FR-1"),
+                                               entityName: "MeilleursBiens")
+            expect(subject.contains("OVHcloud"), subject)
+            expect(subject.contains("FR-1"), subject)
+            expect(subject.contains("MeilleursBiens"), subject)
+        }
+
+        await test("A document with nothing on it still gets a usable subject") {
+            var bare = InvoiceDocument(entityID: UUID(), sha256: "s",
+                                       relativePath: "x/unknown.pdf", byteSize: 1)
+            bare.issuer = nil
+            let subject = EmailMessage.subject(for: bare, entityName: nil)
+            expect(subject.contains("unknown.pdf"), subject)
+        }
+
+        await test("Each invoice is its own conversation, so it is its own success") {
+            // Which is what makes a half-failed batch resumable: the record is
+            // written per document, not once for the lot.
+            let transport = RecordingTransport()
+            let exporter = SMTPExporter(settings: settings, recipients: ["a@b.c"],
+                                        entityName: nil, oneMessagePerInvoice: true,
+                                        makeTransport: { _ in transport })
+            expect(!exporter.deliversOnFinish,
+                   "delivery happens in export, so recording must too")
+
+            let file = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("ir-test-\(UUID().uuidString).pdf")
+            try Data("%PDF".utf8).write(to: file)
+            defer { try? FileManager.default.removeItem(at: file) }
+
+            _ = try await exporter.export(document("OVHcloud", "FR-1"), fileURL: file)
+            _ = try await exporter.export(document("GitHub", "GH-2"), fileURL: file)
+            expectEqual(transport.conversations, 2)
+
+            let subjects = transport.written.filter { $0.hasPrefix("DATA") }
+            expectEqual(subjects.count, 2)   // one DATA per invoice
+        }
+
+        await test("The single-message mode still waits for finish") {
+            let exporter = SMTPExporter(settings: settings, recipients: ["a@b.c"],
+                                        entityName: nil, oneMessagePerInvoice: false,
+                                        makeTransport: { _ in RecordingTransport() })
+            expect(exporter.deliversOnFinish,
+                   "nothing has left the machine until the one message goes")
+        }
+
+        await test("No recipient is refused before a connection is opened") {
+            let transport = RecordingTransport()
+            let exporter = SMTPExporter(settings: settings, recipients: [],
+                                        entityName: nil, oneMessagePerInvoice: true,
+                                        makeTransport: { _ in transport })
+            let file = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("ir-test-\(UUID().uuidString).pdf")
+            try Data("%PDF".utf8).write(to: file)
+            defer { try? FileManager.default.removeItem(at: file) }
+
+            do {
+                _ = try await exporter.export(document("X", "1"), fileURL: file)
+                expect(false, "should have refused")
+            } catch {
+                expectEqual(transport.conversations, 0)   // no point dialling with nowhere to send
+            }
+        }
+    }
+}

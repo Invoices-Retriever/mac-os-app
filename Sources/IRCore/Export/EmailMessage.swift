@@ -8,6 +8,36 @@ import Foundation
 /// pushed onto them.
 public enum EmailMessage {
 
+    /// One invoice, one message. An accounting tool's intake address reads a
+    /// message as a single document, so the subject has to identify that one
+    /// invoice rather than a batch.
+    public static func subject(for document: InvoiceDocument, entityName: String?) -> String {
+        var parts: [String] = []
+        if let issuer = document.issuer?.nilIfEmpty { parts.append(issuer) }
+        if let number = document.number?.nilIfEmpty { parts.append(number) }
+        if let date = document.issuedOn { parts.append(InvoiceDateParser.isoString(date)) }
+        let described = parts.isEmpty
+            ? (document.relativePath as NSString).lastPathComponent
+            : parts.joined(separator: " ")
+        guard let name = entityName?.trimmingCharacters(in: .whitespaces), !name.isEmpty else {
+            return core("Invoice — %@", described)
+        }
+        return core("Invoice — %1$@ — %2$@", name, described)
+    }
+
+    /// The same facts as a line of the batch manifest, laid out for a message
+    /// carrying one document.
+    public static func body(for document: InvoiceDocument) -> String {
+        var lines: [String] = []
+        if let issuer = document.issuer?.nilIfEmpty { lines.append(issuer) }
+        if let number = document.number?.nilIfEmpty { lines.append(core("Number: %@", number)) }
+        if let date = document.issuedOn {
+            lines.append(core("Date: %@", InvoiceDateParser.isoString(date)))
+        }
+        if let total = document.total { lines.append(core("Total: %@", total.formatted())) }
+        return lines.isEmpty ? core("Invoice") : lines.joined(separator: "\n")
+    }
+
     public static func subject(for documents: [InvoiceDocument], entityName: String?) -> String {
         let period = self.period(of: documents)
         let name = entityName?.trimmingCharacters(in: .whitespaces)

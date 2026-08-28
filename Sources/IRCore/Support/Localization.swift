@@ -117,3 +117,14 @@ func coreCount(_ key: String, _ count: Int) -> String {
 func core(_ key: String, _ arguments: CVarArg...) -> String {
     String(format: Localization.string(key, in: .module), arguments: arguments)
 }
+
+
+public extension String {
+    /// Trimmed, or nil when there was nothing but whitespace. Empty and absent
+    /// mean the same thing everywhere in this application, and saying so once
+    /// is better than a `.isEmpty ? nil :` at every call site.
+    var nilIfEmpty: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+}

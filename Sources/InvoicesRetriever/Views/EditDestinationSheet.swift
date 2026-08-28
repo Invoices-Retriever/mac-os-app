@@ -136,10 +136,15 @@ struct EditDestinationSheet: View {
             Section(t("Recipients")) {
                 TextField(t("To"), text: binding("recipients"),
                           prompt: Text(verbatim: "comptable@example.com"))
-                Text(t("Several addresses, separated by commas. One message with every invoice attached."))
+                Text(t("Several addresses, separated by commas."))
                     .font(.caption).foregroundStyle(.secondary)
                 TextField(t("From"), text: binding("from"),
                           prompt: Text(verbatim: "moi@example.com"))
+                Toggle(t("One message per invoice"), isOn: perInvoiceBinding)
+                Text(perInvoice
+                     ? t("What an accounting tool's intake address expects: it reads one message as one document.")
+                     : t("One message with every invoice attached. Easier for a person to read, but an intake address will file only the first."))
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section(t("Mail server")) {
                 TextField(t("Server"), text: binding("host"),
@@ -161,6 +166,13 @@ struct EditDestinationSheet: View {
                 }
             }
         }
+    }
+
+    private var perInvoice: Bool { destination.config["perInvoice"] != "false" }
+
+    private var perInvoiceBinding: Binding<Bool> {
+        Binding(get: { perInvoice },
+                set: { destination.config["perInvoice"] = $0 ? "true" : "false" })
     }
 
     private var security: SMTPSettings.Security {

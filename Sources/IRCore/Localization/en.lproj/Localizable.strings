@@ -143,3 +143,7 @@
 "could not read from %1$@: %2$@" = "could not read from %1$@: %2$@";
 "%@ stopped answering" = "%@ stopped answering";
 "%@ closed the connection" = "%@ closed the connection";
+"Invoice — %@" = "Invoice — %@";
+"Invoice — %1$@ — %2$@" = "Invoice — %1$@ — %2$@";
+"Number: %@" = "Number: %@";
+"Date: %@" = "Date: %@";

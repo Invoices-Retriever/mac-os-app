@@ -535,7 +535,8 @@ final class AppModel {
                 from: destination.config["from"] ?? destination.config["username"] ?? "")
             return SMTPExporter(settings: settings,
                                 recipients: Self.recipients(in: destination),
-                                entityName: entity?.name)
+                                entityName: entity?.name,
+                                oneMessagePerInvoice: destination.config["perInvoice"] != "false")
         }
     }
 
@@ -815,12 +816,6 @@ final class AppModel {
     }
 }
 
-extension String {
-    var nilIfEmpty: String? {
-        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
-    }
-}
 
 
 /// A snapshot of source names the browser driver can read from any thread.

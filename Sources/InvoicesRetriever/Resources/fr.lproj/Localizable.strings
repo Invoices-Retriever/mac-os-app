@@ -341,7 +341,6 @@
 "Recipients" = "Destinataires";
 "To" = "À";
 "From" = "De";
-"Several addresses, separated by commas. One message with every invoice attached." = "Plusieurs adresses, séparées par des virgules. Un seul message avec toutes les factures en pièces jointes.";
 "Mail server" = "Serveur de messagerie";
 "Server" = "Serveur";
 "Encryption" = "Chiffrement";
@@ -354,3 +353,7 @@
 "Without encryption the password crosses the network in the clear. Only for a server on this Mac." = "Sans chiffrement, le mot de passe traverse le réseau en clair. Uniquement pour un serveur sur ce Mac.";
 "%1$@ · %2$@ prepared · last opened %3$@" = "%1$@ · %2$@ préparés · dernière ouverture %3$@";
 "Prepare" = "Préparer";
+"Several addresses, separated by commas." = "Plusieurs adresses, séparées par des virgules.";
+"One message per invoice" = "Un message par facture";
+"What an accounting tool's intake address expects: it reads one message as one document." = "Ce qu'attend l'adresse de dépôt d'un outil comptable : elle lit un message comme un document.";
+"One message with every invoice attached. Easier for a person to read, but an intake address will file only the first." = "Un seul message avec toutes les factures en pièces jointes. Plus lisible pour une personne, mais une adresse de dépôt ne classera que la première.";
