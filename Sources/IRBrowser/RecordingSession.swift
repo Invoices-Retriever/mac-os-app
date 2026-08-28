@@ -43,6 +43,10 @@ public final class RecordingSession: NSObject {
         // session a real source depends on.
         configuration.websiteDataStore = WKWebsiteDataStore(
             forIdentifier: UUID(uuidString: "00000000-0000-4000-8000-000000000001")!)
+        // The same user agent the collector uses. A recording made in a browser
+        // the site treats differently would produce selectors for a page the
+        // collection never sees.
+        configuration.applicationNameForUserAgent = UserAgent.safariToken()
 
         let controller = WKUserContentController()
         configuration.userContentController = controller

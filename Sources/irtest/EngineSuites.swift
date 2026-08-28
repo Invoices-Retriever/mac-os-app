@@ -1680,3 +1680,41 @@ func runPerInvoiceMailSuites() async {
         }
     }
 }
+
+/// What the browser calls itself, and why it matters.
+@MainActor
+func runUserAgentSuites() async {
+    await suite("User agent") {
+
+        await test("The token completes WebKit's default into a Safari one") {
+            // WKWebView's own string ends at "(KHTML, like Gecko)" with no
+            // Version/Safari token, which every detection script reads as an
+            // unknown browser.
+            let token = UserAgent.safariToken(version: "26.5.2")
+            expectEqual(token, "Version/26.5.2 Safari/605.1.15")
+        }
+
+        await test("A version is read from the Safari on this Mac") {
+            let version = UserAgent.installedSafariVersion()
+            expect(UserAgent.isPlausibleVersion(version), version)
+        }
+
+        await test("An unreadable Safari falls back to a version that existed") {
+            let version = UserAgent.installedSafariVersion(searching: ["/nowhere/at/all.plist"])
+            expectEqual(version, UserAgent.fallbackSafariVersion)
+            expect(UserAgent.isPlausibleVersion(version))
+        }
+
+        await test("Anything that is not a version is refused") {
+            // It ends up in a header sent to other people's servers, so a stray
+            // newline there would corrupt every request the browser makes.
+            for bad in ["", "18.0\r\nX-Evil: 1", "Safari", "-1", " 18.0",
+                        "1234567890123", "18,0"] {
+                expect(!UserAgent.isPlausibleVersion(bad), "accepted '\(bad)'")
+            }
+            for good in ["18", "18.0", "26.5.2"] {
+                expect(UserAgent.isPlausibleVersion(good), "refused '\(good)'")
+            }
+        }
+    }
+}

@@ -56,12 +56,22 @@ public final class WebKitBrowserSession: NSObject, BrowserSession {
         let controller = WKUserContentController()
         configuration.userContentController = controller
 
+        // Without this, WKWebView identifies itself as
+        //   Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)
+        // — with no `Version/… Safari/…` token at all. Every browser-detection
+        // script on the web then reads it as an unknown browser, and portals
+        // answer with "please use Chrome, Safari, Firefox or Edge" instead of
+        // the page we came for. Some go further and refuse to sign you in.
+        //
+        // This is not a disguise. It *is* WebKit, the engine Safari is built
+        // on, driven by its owner, and the version is Safari's own as installed
+        // on this Mac. §8.4 forbids faking a fingerprint to defeat bot
+        // detection; declaring the engine you actually are is the opposite of
+        // that, and claiming to be Chrome would be the thing to refuse.
+        configuration.applicationNameForUserAgent = UserAgent.safariToken()
+
         self.webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 1280, height: 900),
                                  configuration: configuration)
-        // A real, current user agent. Not a disguise: this *is* a WebKit
-        // browser driven by its owner. §8.4 forbids faking a fingerprint to
-        // defeat bot detection, and nothing here does that.
-        self.webView.customUserAgent = nil
         self.webView.allowsBackForwardNavigationGestures = false
 
         self.window = NSWindow(
