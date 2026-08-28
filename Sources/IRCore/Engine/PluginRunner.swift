@@ -155,6 +155,15 @@ public struct PluginRunner: Sendable {
             }
 
             // --- Do the work ------------------------------------------------
+            defer {
+                // Whatever the outcome, name what the sandbox refused. A
+                // missing asset host does not fail a run; it strips the page
+                // of its stylesheets and leaves the plugin author reading a
+                // log that says nothing was wrong.
+                let session = created
+                Task { await self.logBlockedHosts(session, source: source, runID: runID) }
+            }
+
             switch mode {
             case .authenticateOnly:
                 await created.setVisible(false)
@@ -213,6 +222,18 @@ public struct PluginRunner: Sendable {
             return Outcome(status: status, documents: [], exposedOptions: [],
                            error: error, screenshot: screenshot, outline: outline)
         }
+    }
+
+    /// Puts refused hosts in the run log the user can read and export (F2.7).
+    ///
+    /// The session logs each one as it happens; this is the tail of the run,
+    /// where the whole list is together and can be pasted into a manifest.
+    private func logBlockedHosts(_ session: any BrowserSession, source: Source, runID: UUID) async {
+        let hosts = await session.drainBlockedHosts()
+        guard !hosts.isEmpty else { return }
+        logger.warning("the sandbox refused \(hosts.joined(separator: ", ")). "
+                       + "If this plugin needs them, they belong in its allowedDomains.",
+                       source: source.id, run: runID)
     }
 
     // MARK: - Authentication

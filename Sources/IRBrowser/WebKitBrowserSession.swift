@@ -34,6 +34,8 @@ public final class WebKitBrowserSession: NSObject, BrowserSession {
     private var observedResponses: [ObservedResponse] = []
     private var downloads = DownloadCoordinator()
     private var blockedHost: String?
+    /// Hosts refused for a subresource, deduplicated, until someone drains them.
+    private var blockedSubresourceHosts: Set<String> = []
     /// Frames other than the main one, so the DOM steps can see into them.
     private var childFrames: [WKFrameInfo] = []
 
@@ -443,6 +445,27 @@ public final class WebKitBrowserSession: NSObject, BrowserSession {
         return responses
     }
 
+    /// Called by the page's error listener for every subresource that failed
+    /// to load. Only hosts the policy actually refuses are kept: a 404 on an
+    /// allowed host is the portal's business, not the sandbox's.
+    func noteFailedResource(url: URL) {
+        guard !policy.allows(url: url), let host = url.host?.lowercased() else { return }
+        // First sighting only. A page that pulls forty assets from one blocked
+        // host would otherwise bury everything else in the run log.
+        guard blockedSubresourceHosts.insert(host).inserted else { return }
+        logger.warning("""
+            blocked \(host): outside allowedDomains. \
+            The page asked for it and got nothing — if the plugin needs it, \
+            add "\(host)" to allowedDomains.
+            """, source: sourceID)
+    }
+
+    public func drainBlockedHosts() async -> [String] {
+        let hosts = blockedSubresourceHosts.sorted()
+        blockedSubresourceHosts.removeAll()
+        return hosts
+    }
+
     /// Remembers a subframe so the DOM steps can reach into it.
     fileprivate func noteFrame(_ frame: WKFrameInfo) {
         guard !frame.isMainFrame else { return }
@@ -489,6 +512,24 @@ public final class WebKitBrowserSession: NSObject, BrowserSession {
         });
       } catch (e) {}
 
+      const postResourceError = (url) => {
+        try {
+          window.webkit.messageHandlers.irNetwork.postMessage({
+            url: String(url), status: 0, body: null, resourceError: true
+          });
+        } catch (e) {}
+      };
+
+      // A subresource the sandbox refuses is dropped by the content blocker,
+      // which reports nothing to anyone. The element does fire an error event,
+      // and capture is the only phase that sees it: these do not bubble.
+      window.addEventListener('error', (event) => {
+        const target = event.target;
+        if (!target || target === window) return;
+        const source = target.src || target.href;
+        if (source) postResourceError(source);
+      }, true);
+
       const post = (url, status, body) => {
         try {
           window.webkit.messageHandlers.irNetwork.postMessage({
@@ -507,6 +548,12 @@ public final class WebKitBrowserSession: NSObject, BrowserSession {
               post(response.url, response.status, null);
             }
             return response;
+          }).catch((error) => {
+            // A blocked fetch rejects with a bare TypeError that says nothing
+            // about why, so name the host before letting it through.
+            const requested = (args[0] && args[0].url) || args[0];
+            if (requested) postResourceError(requested);
+            throw error;
           });
         };
       }
@@ -517,6 +564,9 @@ public final class WebKitBrowserSession: NSObject, BrowserSession {
         return open.call(this, method, url, ...rest);
       };
       XMLHttpRequest.prototype.send = function(...args) {
+        this.addEventListener('error', () => {
+          if (this.__irURL) postResourceError(this.__irURL);
+        });
         this.addEventListener('load', () => {
           let body = null;
           try { if (this.responseType === '' || this.responseType === 'text') body = this.responseText; } catch (e) {}
@@ -717,6 +767,13 @@ private final class NetworkObserver: NSObject, WKScriptMessageHandler {
         let frame = message.frameInfo
 
         MainActor.assumeIsolated { session?.noteFrame(frame) }
+
+        if payload["resourceError"] != nil {
+            guard let urlString = payload["url"] as? String,
+                  let url = URL(string: urlString) else { return }
+            MainActor.assumeIsolated { session?.noteFailedResource(url: url) }
+            return
+        }
 
         // The announcement carries no response, only the frame it came from.
         guard payload["hello"] == nil,

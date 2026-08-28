@@ -57,10 +57,27 @@ public protocol BrowserSession: AnyObject, Sendable {
     /// Responses observed since the last call, for `extractNetworkResponse`.
     func drainNetworkResponses() async -> [ObservedResponse]
 
+    /// Hosts the page asked for and the sandbox refused, since the last call.
+    ///
+    /// A blocked *navigation* raises a named error. A blocked *subresource* —
+    /// a stylesheet, a script, an XHR — is dropped by WebKit's content
+    /// blocker, which calls nobody: no delegate, no error, nothing in the log.
+    /// A plugin whose `allowedDomains` misses an asset host therefore renders
+    /// unstyled pages and fails in ways that point nowhere near the cause.
+    /// This is how that failure gets a name.
+    func drainBlockedHosts() async -> [String]
+
     /// Wipes cookies and local storage for this source, which is what "forget
     /// this session" means.
     func clearSession() async throws
     func close() async
+}
+
+public extension BrowserSession {
+    /// Sessions with no browser under them — the API transport, the fakes in
+    /// the test suite — have no subresources to block, so they inherit this
+    /// rather than each carrying an empty implementation.
+    func drainBlockedHosts() async -> [String] { [] }
 }
 
 public struct APIResponse: Sendable {

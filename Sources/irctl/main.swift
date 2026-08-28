@@ -269,10 +269,30 @@ struct IRCTL {
                 try? Data(outline.utf8).write(to: url)
                 print("→ page structure: \(url.path)")
             }
+            await reportBlockedHosts(session)
             await session.close()
             throw error
         }
+        await reportBlockedHosts(session)
         await session.close()
+    }
+
+    /// What the sandbox refused during the run, ready to paste.
+    ///
+    /// Printed after a success as well as after a failure: a missing asset
+    /// host does not fail a run, it just quietly strips the page of its
+    /// stylesheets, and the contributor is left wondering why the portal looks
+    /// broken only inside this application.
+    private static func reportBlockedHosts(_ session: any BrowserSession) async {
+        let hosts = await session.drainBlockedHosts()
+        guard !hosts.isEmpty else { return }
+        print("\n⚠ the sandbox refused \(hosts.count) host(s). If the plugin needs them:")
+        print("  \"allowedDomains\": [")
+        print(hosts.map { "    \"\($0)\"" }.joined(separator: ",\n"))
+        print("  ]")
+        print("  Listing a host is a decision, not a formality: it is what the")
+        print("  plugin may reach carrying the user's session. Add what the")
+        print("  pages genuinely need, not the whole list because it is offered.")
     }
 
     // MARK: - sandbox
