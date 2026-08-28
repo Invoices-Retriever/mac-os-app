@@ -13,9 +13,11 @@
     <true/>
     <key>com.apple.security.files.user-selected.read-write</key>
     <true/>
-    <key>keychain-access-groups</key>
-    <array>
-        <string>$(AppIdentifierPrefix)app.invoicesretriever</string>
-    </array>
+    <!-- No keychain-access-group is declared. The default group is the
+         application's own, which is what we want: nothing else should reach
+         these items. Declaring one would also require a provisioning profile
+         that grants it, and an unexpanded $(AppIdentifierPrefix) — an Xcode
+         build variable, meaningless to a SwiftPM build — makes the signature
+         invalid and the app refuses to launch. -->
 </dict>
 </plist>
