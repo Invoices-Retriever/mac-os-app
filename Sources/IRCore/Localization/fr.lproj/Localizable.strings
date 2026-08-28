@@ -91,3 +91,4 @@
 "%@ is not a list" = "%@ n'est pas une liste";
 "%@ no longer accepts this session" = "%@ n'accepte plus cette session";
 "could not reach %1$@: %2$@" = "impossible d'atteindre %1$@ : %2$@";
+"needs a newer version of the app (requires engine %1$@, this one is %2$@)" = "nécessite une version plus récente de l'application (moteur %1$@ requis, celui-ci est %2$@)";

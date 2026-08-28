@@ -563,7 +563,7 @@ private func makeCollectContext() throws -> ExecutionContext {
 func runAPISuites() async {
 
     let plugin = """
-    {"id":"api-portal","name":"API Portal","version":"1.0.0","engine":">=1.0.0",
+    {"id":"api-portal","name":"API Portal","version":"1.0.0","engine":">=1.1.0",
      "allowedDomains":["example.com","*.example.com"],
      "checkAuth":[{"action":"navigate","url":"https://example.com/account"},
                   {"action":"checkURL","url":"*/account"}],
@@ -587,6 +587,55 @@ func runAPISuites() async {
             // The point of making this a step rather than runJs: a plugin
             // reading an API is not flagged as running its own code.
             expect(!manifest.containsArbitraryJavaScript)
+        }
+
+        await test("Using new vocabulary without declaring the engine is an error") {
+            // Otherwise the plugin ships, and every application older than the
+            // feature rejects it as *invalid* — sending users to hunt for a
+            // fault in a plugin that is perfectly correct.
+            var object = try JSONSerialization.jsonObject(with: Data(plugin.utf8)) as! [String: Any]
+            object["engine"] = ">=1.0.0"
+            let manifest = try PluginManifest.decode(from: JSONSerialization.data(withJSONObject: object))
+            let report = PluginValidator.validate(manifest)
+            expect(!report.isValid)
+            expect(report.errors.contains { $0.message.contains("1.1.0") })
+        }
+
+        await test("extractAll over the page still runs on a 1.0 engine") {
+            // The floor must come from what a plugin uses, not from the mere
+            // existence of newer vocabulary — or every plugin would need a bump.
+            let scraping = """
+            {"id":"scraper","name":"Scraper","version":"1.0.0","engine":">=1.0.0",
+             "allowedDomains":["example.com"],
+             "checkAuth":[{"action":"checkURL","url":"*/a"}],
+             "getDocuments":[{"action":"extractAll","selector":"tr","forEach":[
+               {"action":"printPdf","document":{"id":"{{item.n}}","date":"{{item.d}}"}}]}]}
+            """
+            let manifest = try PluginManifest.decode(from: Data(scraping.utf8))
+            expectEqual(requiredEngineFloor(manifest), SemVer(1, 0, 0))
+            let r = PluginValidator.validate(manifest)
+            expect(r.isValid, "\(r.errors.map(\.message))")
+        }
+
+        await test("A plugin needing a newer engine is skipped, not called invalid") {
+            // The header decodes even when the steps do not, which is the only
+            // reason this can produce an accurate message.
+            let future = """
+            {"id":"future","name":"Future","version":"2.0.0","engine":">=9.0.0",
+             "allowedDomains":["example.com"],
+             "checkAuth":[{"action":"teleport"}],
+             "getDocuments":[{"action":"teleport"}]}
+            """
+            let data = Data(future.utf8)
+            // Decoding the whole manifest is exactly what fails today.
+            var decodeFailed = false
+            do { _ = try PluginManifest.decode(from: data) } catch { decodeFailed = true }
+            expect(decodeFailed, "the premise of the header no longer holds")
+
+            let header = try PluginManifest.header(from: data)
+            expectEqual(header.id, "future")
+            expect(!header.isSupportedByEngine())
+            expect(PluginCatalog.engineTooOldMessage(header.engine).contains("9.0.0"))
         }
 
         await test("An API endpoint outside allowedDomains is caught statically") {

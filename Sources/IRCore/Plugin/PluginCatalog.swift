@@ -218,15 +218,19 @@ public actor PluginCatalog {
             public var tags: [String]?
             public var status: PluginStatus?
             public var usesJs: Bool?
+            /// Optional because indexes published before 1.1.0 do not carry it;
+            /// absent means "ask the file itself".
+            public var engine: String?
             public var sha256: String
             public var path: String
 
             public init(id: String, version: String, name: String, country: [String]?,
                         tags: [String]?, status: PluginStatus?, usesJs: Bool?,
-                        sha256: String, path: String) {
+                        engine: String? = nil, sha256: String, path: String) {
                 self.id = id; self.version = version; self.name = name
                 self.country = country; self.tags = tags; self.status = status
-                self.usesJs = usesJs; self.sha256 = sha256; self.path = path
+                self.usesJs = usesJs; self.engine = engine
+                self.sha256 = sha256; self.path = path
             }
         }
         public var revision: Int
@@ -263,6 +267,13 @@ public actor PluginCatalog {
         return key.isValidSignature(signature, for: indexData)
     }
 
+    /// One wording for both places that can reach this conclusion, and one
+    /// that names the action the user can take.
+    public static func engineTooOldMessage(_ required: String) -> String {
+        core("needs a newer version of the app (requires engine %1$@, this one is %2$@)",
+             required, PluginManifest.engineVersion.description)
+    }
+
     public func applyIndex(_ indexData: Data,
                            signature: Data,
                            publicKeyBase64: String = PluginCatalog.indexPublicKeyBase64,
@@ -288,12 +299,28 @@ public actor PluginCatalog {
                 update.skipped[item.id] = "a local copy is in use"
                 continue
             }
+            // A plugin written for a later engine is not broken; this build
+            // is simply too old to run it. Saying so before downloading costs
+            // nothing and keeps the reason accurate.
+            if let engine = item.engine, let requirement = VersionRequirement(engine),
+               !requirement.isSatisfied(by: PluginManifest.engineVersion) {
+                update.skipped[item.id] = Self.engineTooOldMessage(engine)
+                continue
+            }
             do {
                 let data = try await fetch(item.path)
                 let digest = DocumentLibrary.sha256(data)
                 guard digest == item.sha256 else {
                     update.skipped[item.id] = "checksum mismatch"
                     logger.error("refusing \(item.id): checksum does not match the index")
+                    continue
+                }
+                // An index published before 1.1.0 carries no engine range, so
+                // the file has to be asked. The header decodes whatever the
+                // steps look like, which is the whole point of it.
+                let header = try PluginManifest.header(from: data)
+                guard header.isSupportedByEngine() else {
+                    update.skipped[item.id] = Self.engineTooOldMessage(header.engine)
                     continue
                 }
                 let manifest = try PluginManifest.decode(from: data)

@@ -9,7 +9,17 @@ import Foundation
 public struct PluginManifest: Codable, Sendable, Identifiable, Hashable {
     /// The engine version this build implements. A plugin asking for more is
     /// refused rather than half-run (F10.4).
-    public static let engineVersion = SemVer(1, 0, 0)
+    /// 1.1.0 added `apiRequest` and `extractAll` over a JSON list. A plugin
+    /// using either must say `">=1.1.0"`, so an application that predates them
+    /// skips it with "update the app" rather than "invalid plugin".
+    public static let engineVersion = SemVer(1, 1, 0)
+
+    /// The engine version each piece of vocabulary first appeared in. Anything
+    /// absent from here has been there since 1.0.0.
+    public static let featureVersions: [String: SemVer] = [
+        "apiRequest": SemVer(1, 1, 0),
+        "extractAll.items": SemVer(1, 1, 0),
+    ]
 
     public var schemaURL: String?
     public var id: String
@@ -84,6 +94,33 @@ public struct PluginManifest: Codable, Sendable, Identifiable, Hashable {
     public func isSupportedByEngine(_ current: SemVer = PluginManifest.engineVersion) -> Bool {
         guard let requirement = VersionRequirement(engine) else { return false }
         return requirement.isSatisfied(by: current)
+    }
+
+    /// Just enough of a manifest to decide whether this build can run it.
+    ///
+    /// Decoded separately and deliberately: a plugin written for a later engine
+    /// contains steps this build has never heard of, so decoding the whole
+    /// manifest fails — and fails with "invalid plugin", which sends the user
+    /// looking for a fault in a plugin that is perfectly correct. The header
+    /// only contains fields whose shape cannot change, so it always decodes,
+    /// and the answer becomes "this needs a newer version of the app".
+    public struct Header: Decodable, Sendable {
+        public var id: String
+        public var version: String
+        public var engine: String
+
+        public func isSupportedByEngine(_ current: SemVer = PluginManifest.engineVersion) -> Bool {
+            guard let requirement = VersionRequirement(engine) else { return false }
+            return requirement.isSatisfied(by: current)
+        }
+    }
+
+    public static func header(from data: Data) throws -> Header {
+        do {
+            return try JSONDecoder().decode(Header.self, from: data)
+        } catch let error as DecodingError {
+            throw IRError.invalidPlugin(Self.describe(error))
+        }
     }
 
     public static func decode(from data: Data) throws -> PluginManifest {

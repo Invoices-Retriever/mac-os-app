@@ -416,6 +416,7 @@ struct IRCTL {
                                country: manifest.country, tags: manifest.tags,
                                status: manifest.effectiveStatus,
                                usesJs: manifest.containsArbitraryJavaScript,
+                               engine: manifest.engine,
                                sha256: DocumentLibrary.sha256(data),
                                path: "plugins/\(file.lastPathComponent)"))
         }

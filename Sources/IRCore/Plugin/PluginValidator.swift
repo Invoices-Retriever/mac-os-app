@@ -66,6 +66,18 @@ public enum PluginValidator {
                                 message: "requires engine \(m.engine); this build implements \(engineVersion)"))
         }
 
+        // An author who uses new vocabulary but leaves `engine` at ">=1.0.0"
+        // ships a plugin that older applications reject as *invalid*, which
+        // sends their users hunting for a fault that is not there. Catch it
+        // here, where it costs one line to fix.
+        let floor = requiredEngineFloor(m)
+        if floor > SemVer(1, 0, 0), requirement.isSatisfied(by: SemVer(1, 0, 0)) {
+            issues.append(.init(severity: .error, path: "engine",
+                                message: "uses vocabulary introduced in engine \(floor) "
+                                       + "but '\(m.engine)' also admits older engines",
+                                hint: "set \"engine\": \">=\(floor)\""))
+        }
+
         // --- The network sandbox -------------------------------------------
         if m.allowedDomains.isEmpty {
             issues.append(.init(severity: .error, path: "allowedDomains",
@@ -361,4 +373,30 @@ public enum PluginValidator {
         walk(m.allSteps, path: "steps")
         return issues
     }
+}
+
+public extension PluginManifest {
+    /// The lowest engine version that can run every step in this manifest.
+    var requiredEngineFloor: SemVer { IRCore.requiredEngineFloor(self) }
+}
+
+/// The lowest engine that can run every step in `manifest`.
+public func requiredEngineFloor(_ manifest: PluginManifest) -> SemVer {
+    var floor = SemVer(1, 0, 0)
+    func walk(_ steps: [PluginStep]) {
+        for step in steps {
+            var features: [String] = [step.action.rawValue]
+            if step.action == .extractAll, step.items != nil { features.append("extractAll.items") }
+            for feature in features {
+                if let introduced = PluginManifest.featureVersions[feature], introduced > floor {
+                    floor = introduced
+                }
+            }
+            walk(step.forEach ?? [])
+            walk(step.then ?? [])
+            walk(step.else ?? [])
+        }
+    }
+    walk(manifest.allSteps)
+    return floor
 }
