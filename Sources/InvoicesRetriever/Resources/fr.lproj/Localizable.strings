@@ -108,6 +108,7 @@
 "Identifier" = "Identifiant";
 "Import PDFs…" = "Importer des PDF…";
 "Import finished" = "Import terminé";
+"Index revision %1$@, %2$@ installed." = "Index révision %1$@, %2$@ installé(s).";
 "Install a plugin file…" = "Installer un fichier de plugin…";
 "Install a plugin that is not in the official index. You will be told what it can do." = "Installer un plugin absent de l'index officiel. Vous serez informé de ce qu'il peut faire.";
 "Installed %@" = "%@ installé";

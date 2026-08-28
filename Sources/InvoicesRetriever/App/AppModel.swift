@@ -517,6 +517,8 @@ final class AppModel {
                 updated.lastIndexRevision = update.revision
                 await save(updated)
             }
+            // Before composing the message, so the count it reports is the one
+            // the catalogue now holds.
             await reload()
 
             var parts: [String] = []
@@ -525,7 +527,14 @@ final class AppModel {
             if !update.removed.isEmpty { parts.append(tn("%d withdrawn", update.removed.count)) }
             if parts.isEmpty { parts.append(t("Already up to date.")) }
 
-            var message = parts.joined(separator: ", ")
+            // Say which index answered. "Already up to date" on its own leaves
+            // no way to tell a working refresh from one that read a stale copy,
+            // which is exactly the doubt this had to be debugged through once.
+            parts.append(t("Index revision %1$@, %2$@ installed.",
+                           number(update.revision),
+                           tn("%d plugin", catalogEntries.count)))
+
+            var message = parts.joined(separator: "\n")
             if !update.skipped.isEmpty {
                 message += "\n" + update.skipped
                     .map { t("%1$@ skipped: %2$@", $0.key, $0.value) }

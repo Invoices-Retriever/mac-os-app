@@ -339,5 +339,21 @@
 			<string>%d rows</string>
 		</dict>
 	</dict>
+	<key>%d plugin</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d plugin</string>
+			<key>other</key>
+			<string>%d plugins</string>
+		</dict>
+	</dict>
 </dict>
 </plist>
