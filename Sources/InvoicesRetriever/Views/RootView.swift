@@ -37,6 +37,7 @@ struct RootView: View {
                 case .catalog: CatalogView()
                 case .runs: RunsView()
                 case .developer: DeveloperView()
+                case .settings: SettingsView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

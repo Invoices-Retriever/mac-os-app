@@ -15,19 +15,25 @@ public struct NamingTemplate: Sendable, Codable, Hashable {
         self.pattern = pattern
     }
 
-    public static let availableTokens: [(token: String, explanation: String)] = [
-        ("{date}", "Invoice date, 2026-03-31"),
-        ("{year}", "2026"),
-        ("{month}", "03"),
-        ("{day}", "31"),
-        ("{issuer}", "Supplier name"),
-        ("{source}", "Name you gave the source"),
-        ("{number}", "Invoice number"),
-        ("{total}", "Gross amount, 1234.56"),
-        ("{currency}", "EUR"),
-        ("{kind}", "invoice, credit-note, receipt…"),
-        ("{id}", "Identifier reported by the plugin"),
-    ]
+    /// Computed rather than stored: the explanations are prose shown in the
+    /// interface, so they have to be resolved when they are read, not once at
+    /// load — otherwise they keep whichever language the application started in
+    /// after the user changes it.
+    public static var availableTokens: [(token: String, explanation: String)] {
+        [
+            ("{date}", core("Invoice date, 2026-03-31")),
+            ("{year}", core("The year, 2026")),
+            ("{month}", core("The month, 03")),
+            ("{day}", core("The day, 31")),
+            ("{issuer}", core("Supplier name")),
+            ("{source}", core("Name you gave the source")),
+            ("{number}", core("Invoice number")),
+            ("{total}", core("Gross amount, 1234.56")),
+            ("{currency}", core("Currency code, EUR")),
+            ("{kind}", core("invoice, credit-note, receipt…")),
+            ("{id}", core("Identifier reported by the plugin")),
+        ]
+    }
 
     public func render(document: InvoiceDocument, sourceName: String?) -> String {
         var output = pattern

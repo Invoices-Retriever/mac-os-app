@@ -102,3 +102,14 @@
 "the API refused these credentials; check them in the source's settings" = "l'API a refusé ces identifiants ; vérifiez-les dans les réglages de la source";
 "macOS asked whether this application could read the saved credentials, and the answer was Deny. Try again and choose “Always Allow”." = "macOS a demandé si cette application pouvait lire les identifiants enregistrés, et la réponse a été Refuser. Réessayez et choisissez « Toujours autoriser ».";
 "macOS would not release the saved credentials: they were stored by a differently signed copy of this application. Open the source, enter them again, and this stops happening." = "macOS refuse de délivrer les identifiants enregistrés : ils ont été stockés par une copie de cette application signée différemment. Ouvrez la source, saisissez-les à nouveau, et cela cessera.";
+"Invoice date, 2026-03-31" = "Date de la facture, 2026-03-31";
+"The year, 2026" = "L'année, 2026";
+"The month, 03" = "Le mois, 03";
+"The day, 31" = "Le jour, 31";
+"Supplier name" = "Nom du fournisseur";
+"Name you gave the source" = "Nom que vous avez donné à la source";
+"Invoice number" = "Numéro de facture";
+"Gross amount, 1234.56" = "Montant TTC, 1234.56";
+"Currency code, EUR" = "Code de la devise, EUR";
+"invoice, credit-note, receipt…" = "facture, avoir, reçu…";
+"Identifier reported by the plugin" = "Identifiant rapporté par le plugin";

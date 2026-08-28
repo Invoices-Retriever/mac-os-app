@@ -1083,3 +1083,47 @@ func runVaultRecoverySuites() async {
         }
     }
 }
+
+/// The global floor on how far back a collection goes.
+@MainActor
+func runEarliestDateSuites() async {
+    await suite("Earliest document date") {
+
+        func source(lastSuccess: Date?, lookbackDays: Int = 90) -> Source {
+            var s = Source(entityID: UUID(), pluginID: "p", pluginVersion: "1.0.0",
+                           displayName: "S", lookbackDays: lookbackDays)
+            s.lastSuccessAt = lastSuccess
+            return s
+        }
+        let now = InvoiceDateParser.parse("2026-06-01")!
+        let floor = InvoiceDateParser.parse("2026-01-01")!
+
+        await test("With no floor, nothing changes") {
+            let cutoff = source(lastSuccess: nil).incrementalCutoff(now: now)
+            expectEqual(InvoiceDateParser.isoString(cutoff), "2026-03-03")
+        }
+
+        await test("The floor shortens a long first-run window") {
+            // 3650 days back would walk a decade of a supplier's history.
+            let cutoff = source(lastSuccess: nil, lookbackDays: 3650)
+                .incrementalCutoff(now: now, notBefore: floor)
+            expectEqual(InvoiceDateParser.isoString(cutoff), "2026-01-01")
+        }
+
+        await test("The floor never lengthens a walk") {
+            // The cursor already says "I have everything up to May"; a floor in
+            // January must not send the run back through what it has.
+            let cutoff = source(lastSuccess: InvoiceDateParser.parse("2026-05-20")!)
+                .incrementalCutoff(now: now, notBefore: floor)
+            expectEqual(InvoiceDateParser.isoString(cutoff), "2026-05-13")
+        }
+
+        await test("A floor in the future wins, and stops collection dead") {
+            // Not a case to be clever about: the user asked for nothing older
+            // than a date, and honouring it literally is what they can predict.
+            let cutoff = source(lastSuccess: nil)
+                .incrementalCutoff(now: now, notBefore: InvoiceDateParser.parse("2027-01-01")!)
+            expectEqual(InvoiceDateParser.isoString(cutoff), "2027-01-01")
+        }
+    }
+}

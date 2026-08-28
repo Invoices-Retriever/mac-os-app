@@ -23,13 +23,19 @@ public struct PluginRunner: Sendable {
     /// can only read once you are unstuck is no use while you are stuck.
     public var onHandOver: (@Sendable (String) async -> Void)?
 
+    /// Nothing issued before this is collected, whatever a source's own
+    /// look-back window says.
+    public var earliestDocumentDate: Date?
+
     public init(manifest: PluginManifest,
                 sessionFactory: any BrowserSessionFactory,
                 vault: CredentialVault,
+                earliestDocumentDate: Date? = nil,
                 logger: RedactingLogger = .shared) {
         self.manifest = manifest
         self.sessionFactory = sessionFactory
         self.vault = vault
+        self.earliestDocumentDate = earliestDocumentDate
         self.logger = logger
     }
 
@@ -91,7 +97,7 @@ public struct PluginRunner: Sendable {
             let context = ExecutionContext(
                 source: source, manifest: manifest, runID: runID,
                 config: source.config, secrets: secrets, totpCodes: totpCodes,
-                incrementalCutoff: source.incrementalCutoff())
+                incrementalCutoff: source.incrementalCutoff(notBefore: earliestDocumentDate))
 
             let policy = manifest.domainPolicy
             // A plugin with its own API credentials has nothing to drive: no

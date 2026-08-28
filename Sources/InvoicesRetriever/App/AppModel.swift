@@ -37,6 +37,24 @@ final class AppModel {
         manifest(for: source)?.isAPIOnly ?? false
     }
 
+    /// The organisation invoices are collected for. Its name and VAT number
+    /// travel into exports and file names, so they are worth being able to fix
+    /// without editing the database.
+    func updateEntity(name: String, vatNumber: String?) async {
+        guard let store, var entity else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        entity.name = trimmed.isEmpty ? Entity.defaultName : trimmed
+        entity.vatNumber = vatNumber?.trimmingCharacters(in: .whitespaces).nilIfEmpty
+        guard entity != self.entity else { return }
+        do {
+            try await store.upsert(entity)
+            self.entity = entity
+        } catch {
+            alert = AlertContent(title: t("Could not save the organisation"),
+                                 message: error.localizedDescription)
+        }
+    }
+
     /// The plugin a collected document came from, for its supplier's logo.
     func manifest(forSourceID id: UUID?) -> PluginManifest? {
         guard let id, let source = sources.first(where: { $0.id == id }) else { return nil }
@@ -129,6 +147,7 @@ final class AppModel {
                 sessionFactory: WebKitSessionFactory(sourceNames: { names.name(for: $0) }),
                 extractor: MetadataExtractor(enableOCR: preferences.enableOCR))
             await collector.setMaximumConcurrency(preferences.maximumConcurrency)
+            await collector.setEarliestDocumentDate(preferences.earliestDocumentDate)
 
             exportService = ExportService(store: store, library: library)
             scheduler = Scheduler(store: store, collector: collector)
@@ -471,6 +490,7 @@ final class AppModel {
         library.fileTemplate = NamingTemplate(pattern: newValue.fileNamePattern)
         library.folderTemplate = NamingTemplate(pattern: newValue.folderPattern)
         await collector.setMaximumConcurrency(newValue.maximumConcurrency)
+        await collector.setEarliestDocumentDate(newValue.earliestDocumentDate)
         if let entityID = entity?.id {
             await scheduler.setEnabled(newValue.schedulerEnabled, entityID: entityID)
         }

@@ -61,12 +61,18 @@ public struct Preferences: Codable, Sendable, Hashable {
     /// scan — and switchable, because it is the one thing in the application
     /// that talks to a third party at all.
     public var showSupplierLogos: Bool
+    /// Nothing issued before this is collected, whatever a source's own
+    /// look-back says. Someone whose business started in 2026 does not want
+    /// nine years of a supplier's history, and no per-source window expresses
+    /// that as well as a date does. Nil means no floor.
+    public var earliestDocumentDate: Date?
 
     public init(libraryPath: String?, fileNamePattern: String, folderPattern: String,
                 maximumConcurrency: Int, schedulerEnabled: Bool, enableOCR: Bool,
                 enableLLMFallback: Bool, llmProvider: String?, interfaceLanguage: String?,
                 pluginIndexURL: String, lastIndexRevision: Int,
-                showSupplierLogos: Bool = true) {
+                showSupplierLogos: Bool = true,
+                earliestDocumentDate: Date? = nil) {
         self.libraryPath = libraryPath
         self.fileNamePattern = fileNamePattern
         self.folderPattern = folderPattern
@@ -79,6 +85,7 @@ public struct Preferences: Codable, Sendable, Hashable {
         self.pluginIndexURL = pluginIndexURL
         self.lastIndexRevision = lastIndexRevision
         self.showSupplierLogos = showSupplierLogos
+        self.earliestDocumentDate = earliestDocumentDate
     }
 
     public static let `default` = Preferences(
@@ -140,12 +147,14 @@ public struct Preferences: Codable, Sendable, Hashable {
         pluginIndexURL = try c.decodeIfPresent(String.self, forKey: .pluginIndexURL) ?? fallback.pluginIndexURL
         lastIndexRevision = try c.decodeIfPresent(Int.self, forKey: .lastIndexRevision) ?? fallback.lastIndexRevision
         showSupplierLogos = try c.decodeIfPresent(Bool.self, forKey: .showSupplierLogos) ?? fallback.showSupplierLogos
+        earliestDocumentDate = try c.decodeIfPresent(Date.self, forKey: .earliestDocumentDate)
     }
 
     private enum CodingKeys: String, CodingKey {
         case libraryPath, fileNamePattern, folderPattern, maximumConcurrency
         case schedulerEnabled, enableOCR, enableLLMFallback, llmProvider
         case interfaceLanguage, pluginIndexURL, lastIndexRevision, showSupplierLogos
+        case earliestDocumentDate
     }
 
     public static func load(from store: Store) async -> Preferences {

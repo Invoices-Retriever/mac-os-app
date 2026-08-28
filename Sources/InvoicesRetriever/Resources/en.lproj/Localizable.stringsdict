@@ -338,22 +338,6 @@
 			<string>%d withdrawn</string>
 		</dict>
 	</dict>
-	<key>Collect from %d sources at a time</key>
-	<dict>
-		<key>NSStringLocalizedFormatKey</key>
-		<string>%#@count@</string>
-		<key>count</key>
-		<dict>
-			<key>NSStringFormatSpecTypeKey</key>
-			<string>NSStringPluralRuleType</string>
-			<key>NSStringFormatValueTypeKey</key>
-			<string>d</string>
-			<key>one</key>
-			<string>Collect from %d source at a time</string>
-			<key>other</key>
-			<string>Collect from %d sources at a time</string>
-		</dict>
-	</dict>
 	<key>Every one of the %d selected documents will be sent.</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>

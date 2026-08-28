@@ -226,3 +226,92 @@ struct FirstStep: View {
         .padding(40)
     }
 }
+
+// MARK: - Settings
+
+/// One titled group of settings: an icon, a name, and a card of rows.
+///
+/// The icon is not decoration — it is what lets someone scanning a long page
+/// find "the one about downloads" without reading every heading.
+struct SettingsGroup<Content: View>: View {
+    let title: String
+    let symbol: String
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: symbol)
+                .font(.headline)
+                .foregroundStyle(.secondary)
+            VStack(spacing: 0) { content }
+                .background(.background.secondary,
+                            in: RoundedRectangle(cornerRadius: Layout.cardRadius, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Layout.cardRadius, style: .continuous)
+                        .strokeBorder(Color(nsColor: .separatorColor).opacity(0.7), lineWidth: 0.5)
+                }
+        }
+    }
+}
+
+/// One setting: what it is, what it does, and the control that changes it.
+///
+/// The second line is the part that matters. A toggle labelled "Process
+/// imported documents" is a coin flip for anyone who did not write the feature;
+/// one sentence underneath turns it into a decision. Rows separate themselves
+/// so a group does not have to know how many it holds.
+struct SettingsRow<Control: View>: View {
+    let title: String
+    var subtitle: String?
+    var isFirst = false
+    @ViewBuilder var control: Control
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if !isFirst {
+                Divider().padding(.leading, 16)
+            }
+            HStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.body)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Spacer(minLength: 12)
+                control
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+    }
+}
+
+/// A row that is all explanation and no control — a note inside a group, where
+/// it stays attached to what it is about.
+struct SettingsNote: View {
+    let text: String
+    var symbol: String = "info.circle"
+    var colour: Color = .secondary
+    var isFirst = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if !isFirst { Divider().padding(.leading, 16) }
+            Label {
+                Text(text)
+                    .font(.callout)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } icon: {
+                Image(systemName: symbol)
+            }
+            .foregroundStyle(colour)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+    }
+}

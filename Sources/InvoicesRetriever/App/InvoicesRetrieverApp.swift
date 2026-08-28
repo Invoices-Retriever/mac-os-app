@@ -45,7 +45,7 @@ struct InvoicesRetrieverApp: App {
                 .environment(model)
                 .environment(logos)
                 .id(model.languageRevision)
-                .frame(width: 640, height: 560)
+                .frame(width: 720, height: 680)
         }
     }
 }

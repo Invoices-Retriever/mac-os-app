@@ -61,7 +61,17 @@ public struct Source: Codable, Sendable, Identifiable, Hashable {
     /// The incremental cursor of F2.5: everything strictly older than this has
     /// already been collected, so the run can stop walking the history.
     /// Falls back to a lookback window on a source that never succeeded.
-    public func incrementalCutoff(now: Date = Date()) -> Date {
+    /// `notBefore` is the user's global floor: a history they do not want at
+    /// all, which is a different thing from F2.5's cursor. The cursor answers
+    /// "what have I already got"; the floor answers "how far back do I care".
+    /// Whichever is later wins, so the floor can only ever shorten a walk.
+    public func incrementalCutoff(now: Date = Date(), notBefore: Date? = nil) -> Date {
+        let computed = uncappedIncrementalCutoff(now: now)
+        guard let notBefore else { return computed }
+        return max(computed, notBefore)
+    }
+
+    private func uncappedIncrementalCutoff(now: Date) -> Date {
         if let lastSuccessAt {
             // One week of overlap: portals routinely back-date an invoice by a
             // few days, and re-seeing a document we already have costs nothing

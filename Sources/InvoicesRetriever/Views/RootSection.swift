@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The application's top-level places.
 enum RootSection: String, CaseIterable, Identifiable {
-    case sources, library, catalog, runs, developer
+    case sources, library, catalog, runs, developer, settings
     var id: String { rawValue }
 
     var title: String {
@@ -12,6 +12,7 @@ enum RootSection: String, CaseIterable, Identifiable {
         case .catalog: return t("Catalogue")
         case .runs: return t("History")
         case .developer: return t("Plugin developer")
+        case .settings: return t("Settings")
         }
     }
 
@@ -22,6 +23,7 @@ enum RootSection: String, CaseIterable, Identifiable {
         case .catalog: return "square.grid.2x2"
         case .runs: return "clock.arrow.circlepath"
         case .developer: return "hammer"
+        case .settings: return "gearshape"
         }
     }
 }

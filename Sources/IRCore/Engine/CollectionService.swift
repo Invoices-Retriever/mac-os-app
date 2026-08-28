@@ -23,6 +23,13 @@ public actor CollectionService {
         maximumConcurrency = max(1, min(value, 6))
     }
 
+    /// The user's floor on how far back to go at all. Nil means no floor.
+    public private(set) var earliestDocumentDate: Date?
+
+    public func setEarliestDocumentDate(_ date: Date?) {
+        earliestDocumentDate = date
+    }
+
     private var inFlight: [UUID: Task<RunReport, Never>] = [:]
 
     public init(store: Store,
@@ -169,7 +176,8 @@ public actor CollectionService {
             }
 
             let runner = PluginRunner(manifest: manifest, sessionFactory: sessionFactory,
-                                      vault: vault, logger: logger)
+                                      vault: vault, earliestDocumentDate: earliestDocumentDate,
+                                      logger: logger)
             let outcome = await runner.run(source: source, mode: .collect, runID: run.id)
 
             run.documentsFound = outcome.documents.count
@@ -296,7 +304,8 @@ public actor CollectionService {
                 throw IRError.invalidPlugin("plugin '\(source.pluginID)' is not installed")
             }
             var runner = PluginRunner(manifest: manifest, sessionFactory: sessionFactory,
-                                      vault: vault, logger: logger)
+                                      vault: vault, earliestDocumentDate: earliestDocumentDate,
+                                      logger: logger)
             // Write it while the user is still looking at the screen it
             // describes, not once the run is over.
             let runID = run.id
