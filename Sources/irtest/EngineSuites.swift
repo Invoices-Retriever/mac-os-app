@@ -1518,3 +1518,50 @@ func runSMTPSuites() async {
         }
     }
 }
+
+/// What happens when the send at the end of a batch fails.
+@MainActor
+func runExportFailureSuites() async {
+
+    /// An exporter that gathers and then fails at the moment of delivery —
+    /// no mail client, a refused password, a server that hung up.
+    struct FailingBatchExporter: Exporter {
+        let destinationID = "batch:test"
+        let kind = ExportDestinationKind.smtp
+        let displayName = "Test"
+        var deliversOnFinish: Bool { true }
+        func export(_ document: InvoiceDocument, fileURL: URL) async throws -> String? { nil }
+        func finish(_ documents: [InvoiceDocument]) async throws -> String? {
+            throw IRError.export("the server hung up")
+        }
+    }
+
+    struct WorkingBatchExporter: Exporter {
+        let destinationID = "batch:test"
+        let kind = ExportDestinationKind.smtp
+        let displayName = "Test"
+        var deliversOnFinish: Bool { true }
+        func export(_ document: InvoiceDocument, fileURL: URL) async throws -> String? { nil }
+        func finish(_ documents: [InvoiceDocument]) async throws -> String? { "sent" }
+    }
+
+    await suite("A failed delivery") {
+
+        await test("A batch exporter delivers on finish, a folder does not") {
+            expect(FailingBatchExporter().deliversOnFinish)
+            expect(!FolderExporter(root: URL(fileURLWithPath: "/tmp"),
+                                   folderTemplate: NamingTemplate.folderDefault,
+                                   fileTemplate: NamingTemplate.default).deliversOnFinish,
+                   "each copy has already happened when export returns")
+        }
+
+        await test("The e-mail card must not claim a message was sent") {
+            // It opens a compose window; the person still has to press Send.
+            expect(!ExportDestinationKind.email.deliversItself)
+            for kind in [ExportDestinationKind.folder, .csv, .json,
+                         .webhook, .smtp, .paperless] {
+                expect(kind.deliversItself, "\(kind) really does deliver")
+            }
+        }
+    }
+}

@@ -112,6 +112,16 @@ public extension ExportDestinationKind {
         }
     }
 
+    /// Whether this kind actually delivers, or only prepares something a
+    /// person then has to send. The card must not say "sent" for a message
+    /// still sitting unsent in a compose window.
+    var deliversItself: Bool {
+        switch self {
+        case .email: return false
+        default: return true
+        }
+    }
+
     /// Whether a destination of this kind can sensibly run on its own after a
     /// collection. E-mail cannot: it opens a window someone has to look at, and
     /// having that happen unattended at 3am is not a feature.

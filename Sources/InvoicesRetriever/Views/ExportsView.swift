@@ -163,7 +163,7 @@ private struct ConnectedCard: View {
                 if isRunning {
                     ProgressView().controlSize(.small)
                 } else {
-                    Button(t("Run now")) {
+                    Button(destination.kind.deliversItself ? t("Run now") : t("Prepare")) {
                         Task { await model.run(destination, documents: model.documents) }
                     }
                     .disabled(!isComplete || model.documents.isEmpty)
@@ -215,8 +215,12 @@ private struct ConnectedCard: View {
         if destination.lastSucceeded == false {
             return t("%1$@ · failed %2$@", target, when)
         }
-        return t("%1$@ · %2$@ sent · last run %3$@", target,
-                 tn("%d document", destination.documentsSent), when)
+        // "Sent" would be a lie for a destination that only opens a message.
+        return destination.kind.deliversItself
+            ? t("%1$@ · %2$@ sent · last run %3$@", target,
+                tn("%d document", destination.documentsSent), when)
+            : t("%1$@ · %2$@ prepared · last opened %3$@", target,
+                tn("%d document", destination.documentsSent), when)
     }
 
     /// Where this destination points, in the shortest form that still tells two

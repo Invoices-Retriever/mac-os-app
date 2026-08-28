@@ -18,10 +18,21 @@ public protocol Exporter: Sendable {
     /// Called once after a batch, for destinations that emit a single artefact
     /// — a CSV register, a monthly e-mail.
     func finish(_ documents: [InvoiceDocument]) async throws -> String?
+
+    /// True when `export` only gathers and `finish` is what actually sends.
+    ///
+    /// It changes when a document may be recorded as exported. For a folder,
+    /// each copy has happened by the time `export` returns. For one message
+    /// carrying twelve invoices, nothing has left the machine until `finish`
+    /// succeeds — and recording them before that means a failed send leaves
+    /// twelve documents marked as sent, which idempotence then refuses to send
+    /// again. That is how mail goes missing quietly.
+    var deliversOnFinish: Bool { get }
 }
 
 public extension Exporter {
     func finish(_ documents: [InvoiceDocument]) async throws -> String? { nil }
+    var deliversOnFinish: Bool { false }
 }
 
 public actor ExportService {
@@ -70,10 +81,12 @@ public actor ExportService {
 
             do {
                 let detail = try await exporter.export(document, fileURL: fileURL)
-                try await store.record(ExportRecord(
-                    documentID: document.id, destinationID: exporter.destinationID,
-                    destinationKind: exporter.kind, succeeded: true, detail: detail))
-                report.exported.append(document.id)
+                if !exporter.deliversOnFinish {
+                    try await store.record(ExportRecord(
+                        documentID: document.id, destinationID: exporter.destinationID,
+                        destinationKind: exporter.kind, succeeded: true, detail: detail))
+                    report.exported.append(document.id)
+                }
                 succeeded.append(document)
             } catch {
                 let message = logger.redact(error.localizedDescription)
@@ -85,7 +98,33 @@ public actor ExportService {
             }
         }
 
-        report.summary = try? await exporter.finish(succeeded)
+        // Not `try?`. This is where a batch destination actually sends, so
+        // swallowing the error here reports a success for mail that never left
+        // — which is exactly how it went unnoticed.
+        do {
+            report.summary = try await exporter.finish(succeeded)
+            if exporter.deliversOnFinish {
+                for document in succeeded {
+                    try? await store.record(ExportRecord(
+                        documentID: document.id, destinationID: exporter.destinationID,
+                        destinationKind: exporter.kind, succeeded: true, detail: report.summary))
+                    report.exported.append(document.id)
+                }
+            }
+        } catch {
+            let message = logger.redact(error.localizedDescription)
+            logger.error("export to \(exporter.displayName) failed: \(message)")
+            if exporter.deliversOnFinish {
+                // Nothing was recorded, so nothing is "already sent" and the
+                // user can simply run it again once the cause is fixed.
+                for document in succeeded {
+                    report.failed.append((document.id, message))
+                }
+            } else {
+                report.failed.append((UUID(), message))
+            }
+            report.summary = nil
+        }
         progress?(documents.count, documents.count)
         return report
     }

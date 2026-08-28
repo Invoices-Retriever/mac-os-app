@@ -34,6 +34,8 @@ final class EmailExporter: Exporter, @unchecked Sendable {
         "email:" + (recipients.isEmpty ? "-" : recipients.sorted().joined(separator: ","))
     }
     var kind: ExportDestinationKind { .email }
+    /// Nothing leaves until `finish`.
+    var deliversOnFinish: Bool { true }
     var displayName: String {
         recipients.isEmpty ? t("E-mail") : t("E-mail to %@", recipients.joined(separator: ", "))
     }

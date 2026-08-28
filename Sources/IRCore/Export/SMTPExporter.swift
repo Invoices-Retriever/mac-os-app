@@ -44,6 +44,8 @@ public struct SMTPExporter: Exporter {
         "smtp:\(settings.host):\(recipients.sorted().joined(separator: ","))"
     }
     public var kind: ExportDestinationKind { .smtp }
+    /// Nothing leaves until `finish`.
+    public var deliversOnFinish: Bool { true }
     public var displayName: String {
         recipients.isEmpty ? settings.host : recipients.joined(separator: ", ")
     }
