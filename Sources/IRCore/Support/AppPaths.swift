@@ -84,13 +84,27 @@ public struct Preferences: Codable, Sendable, Hashable {
         enableLLMFallback: false,
         llmProvider: nil,
         interfaceLanguage: nil,
-                // The gh-pages branch, which is what the publish workflow writes and
-        // where the detached signature sits beside the index. Reading it raw
-        // works without GitHub Pages being enabled on the repository.
-        pluginIndexURL: "https://raw.githubusercontent.com/Invoices-Retriever/plugins/gh-pages/index.json",
+                // GitHub Pages, serving the gh-pages branch the publish workflow
+        // writes. Pages purges its CDN when a deploy lands; raw.githubusercontent
+        // does not, and served a five-minute-old index twice while this was
+        // being built — long enough to look like a bug in the app both times.
+        // For an index whose job includes withdrawing a compromised plugin,
+        // "eventually" is not good enough.
+        pluginIndexURL: Preferences.defaultIndexURL,
         lastIndexRevision: 0)
 
     public static let settingKey = "preferences"
+
+    public static let defaultIndexURL = "https://invoices-retriever.github.io/plugins/index.json"
+
+    /// Addresses this build knows to be superseded. A stored preference
+    /// pointing at one is moved on, rather than leaving an install reading an
+    /// index that lags — the user never chose that address, a previous version
+    /// of the app did.
+    static let supersededIndexURLs = [
+        "https://raw.githubusercontent.com/Invoices-Retriever/plugins/gh-pages/index.json",
+        "https://raw.githubusercontent.com/Invoices-Retriever/plugins/main/dist/index.json",
+    ]
 
     /// Decoding fills in anything the stored record does not carry.
     ///
@@ -129,7 +143,12 @@ public struct Preferences: Codable, Sendable, Hashable {
             return .default
         }
         do {
-            return try JSONDecoder().decode(Preferences.self, from: data)
+            var loaded = try JSONDecoder().decode(Preferences.self, from: data)
+            if supersededIndexURLs.contains(loaded.pluginIndexURL) {
+                loaded.pluginIndexURL = defaultIndexURL
+                try? await loaded.save(to: store)
+            }
+            return loaded
         } catch {
             // Should not happen — every field has a default and decoding is
             // tolerant of missing ones — so if it does, say so rather than

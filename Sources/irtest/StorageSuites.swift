@@ -179,6 +179,33 @@ func runStorageSuites() async {
             expect(!loaded.enableLLMFallback, "an absent key must never turn the model on")
         }
 
+        await test("A stored index address this build has superseded is moved on") {
+            let (store, directory) = try await makeTemporaryStore()
+            defer { try? FileManager.default.removeItem(at: directory) }
+
+            // The user never chose that address — an older version of the app
+            // did — so leaving an install reading a lagging index would be
+            // honouring a preference nobody expressed.
+            try await store.setSetting(Preferences.settingKey,
+                #"{"pluginIndexURL":"https://raw.githubusercontent.com/Invoices-Retriever/plugins/gh-pages/index.json"}"#)
+
+            let loaded = await Preferences.load(from: store)
+            expectEqual(loaded.pluginIndexURL, Preferences.defaultIndexURL)
+
+            // And it stays moved on.
+            expectEqual(await Preferences.load(from: store).pluginIndexURL,
+                        Preferences.defaultIndexURL)
+        }
+
+        await test("An address the user chose themselves is left alone") {
+            let (store, directory) = try await makeTemporaryStore()
+            defer { try? FileManager.default.removeItem(at: directory) }
+            try await store.setSetting(Preferences.settingKey,
+                #"{"pluginIndexURL":"https://example.internal/my-index.json"}"#)
+            expectEqual(await Preferences.load(from: store).pluginIndexURL,
+                        "https://example.internal/my-index.json")
+        }
+
         await test("An unreadable record falls back rather than crashing") {
             let (store, directory) = try await makeTemporaryStore()
             defer { try? FileManager.default.removeItem(at: directory) }
