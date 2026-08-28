@@ -105,9 +105,12 @@ final class FakeBrowserSession: BrowserSession, @unchecked Sendable {
 
     func setVisible(_ visible: Bool) async { self.visible = visible }
 
+    /// Calls the predicate, so a test sees whether the runner asked the
+    /// destructive question — which is the thing worth asserting about.
     func waitForUserSignIn(until: Date, isSignedIn: @Sendable () async -> Bool) async -> Bool {
         signInChecks += 1
-        return signInChecks >= signInAfterChecks
+        if signInChecks >= signInAfterChecks { return true }
+        return await isSignedIn()
     }
 
     func download(from url: URL, timeout: Duration) async throws -> Data {

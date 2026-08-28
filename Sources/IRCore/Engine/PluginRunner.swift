@@ -101,8 +101,14 @@ public struct PluginRunner: Sendable {
                     // batch. Report it and let the other sources finish.
                     throw IRError.authenticationRequired(source.displayName)
                 case .authenticateOnly, .discoverOptions:
+                    // checkAuth has just told us where an unauthenticated visit
+                    // ends up. That host is the portal's sign-in flow, and it
+                    // is the one place we must not navigate while the user is
+                    // working — see `signIn`.
+                    let signInHost = await created.currentURL()?.host?.lowercased()
                     try await signIn(executor: executor, session: created, context: context,
-                                     source: source, runID: runID, deadline: deadline)
+                                     source: source, runID: runID, deadline: deadline,
+                                     signInHost: signInHost)
                 }
             }
 
@@ -147,6 +153,23 @@ public struct PluginRunner: Sendable {
 
     // MARK: - Authentication
 
+    /// True when a field `startAuth` typed into is still on the page.
+    ///
+    /// Cheap and non-destructive: it asks the page what it contains rather than
+    /// navigating anywhere.
+    private func isStillOnSignInForm(session: any BrowserSession) async -> Bool {
+        let selectors = (manifest.startAuth ?? [])
+            .filter { $0.action == .type }
+            .compactMap(\.selector)
+        guard !selectors.isEmpty else { return false }
+
+        for selector in selectors {
+            let present = (try? await session.evaluate(DOMScripts.exists(selector)))?.boolValue ?? false
+            if present { return true }
+        }
+        return false
+    }
+
     private func isSignedIn(executor: StepExecutor, session: any BrowserSession) async -> Bool {
         do {
             try await executor.run(manifest.checkAuth, section: "checkAuth")
@@ -161,7 +184,8 @@ public struct PluginRunner: Sendable {
                         context: ExecutionContext,
                         source: Source,
                         runID: UUID,
-                        deadline: Deadline) async throws {
+                        deadline: Deadline,
+                        signInHost: String?) async throws {
 
         await session.setVisible(true)
 
@@ -178,13 +202,43 @@ public struct PluginRunner: Sendable {
             }
         }
 
-        if await isSignedIn(executor: executor, session: session) { return }
+        // Whether it is safe to ask the expensive question.
+        //
+        // `isSignedIn` runs checkAuth, and checkAuth begins by navigating. Ask
+        // it while the user is somewhere in the portal's sign-in flow and that
+        // page is gone — reported as "the credentials are filled in, then
+        // nothing happens and the page reloads", which is precisely what it
+        // looks like from the other side of the screen.
+        //
+        // Checking only for the login form is not enough: a submitted form
+        // becomes a two-factor prompt, which has none of its fields, and
+        // navigating away from *that* loses a code the user just fetched from
+        // their phone. The whole flow lives on the host an unauthenticated
+        // visit was redirected to, so that host is the thing to stay off.
+        @Sendable func inSignInFlow() async -> Bool {
+            if let signInHost, await session.currentURL()?.host?.lowercased() == signInHost {
+                return true
+            }
+            // Belt and braces for a portal that signs you in without leaving
+            // the page: the fields startAuth typed into are still on screen.
+            return await isStillOnSignInForm(session: session)
+        }
+
+        if await inSignInFlow() {
+            logger.debug("still inside the sign-in flow; not navigating away from it",
+                         source: source.id, run: runID)
+        } else if await isSignedIn(executor: executor, session: session) {
+            return
+        }
 
         logger.info("waiting for you to finish signing in", source: source.id, run: runID)
         let startedWaiting = Date()
         let signInDeadline = Date().addingTimeInterval(interactiveSignInBudget.seconds)
         let succeeded = await session.waitForUserSignIn(until: signInDeadline) {
-            await isSignedIn(executor: executor, session: session)
+            // Cheap and non-destructive while the user is still working; the
+            // real check only once they have left the sign-in flow.
+            if await inSignInFlow() { return false }
+            return await isSignedIn(executor: executor, session: session)
         }
         // Give back every second the person took. Otherwise a slow two-factor
         // code leaves no budget for the collection it was meant to unlock.

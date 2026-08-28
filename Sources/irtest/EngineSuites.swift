@@ -371,3 +371,97 @@ func runEngineSuites() async {
         }
     }
 }
+
+/// The sign-in path, which is where every source starts and where the engine
+/// has broken twice: once by polling a navigating check every two seconds, once
+/// by running it immediately after filling the form.
+@MainActor
+func runSignInSuites() async {
+
+    await suite("Interactive sign-in") {
+
+        /// A portal whose sign-in lives on its own host, like OVHcloud's.
+        func makePortal() -> FakeBrowserSession {
+            var login = FakeBrowserSession.Page()
+            login.elements["#account"] = ""
+            login.elements["#password"] = ""
+            login.elements["#login-submit"] = "Sign in"
+
+            var manager = FakeBrowserSession.Page()
+            manager.elements["#billing"] = "Invoices"
+
+            return FakeBrowserSession(pages: [
+                "https://auth.example.com/signin": login,
+                "https://manager.example.com/billing": manager,
+            ], start: "https://auth.example.com/signin")
+        }
+
+        let plugin = """
+        {"id":"portal","name":"Portal","version":"1.0.0","engine":">=1.0.0",
+         "allowedDomains":["example.com","*.example.com"],
+         "configSchema":{"user":{"type":"string","label":"User","required":true},
+                         "password":{"type":"password","label":"Password","required":true}},
+         "checkAuth":[{"action":"navigate","url":"https://manager.example.com/billing"},
+                      {"action":"checkElementExists","selector":"#billing","timeout":300}],
+         "startAuth":[{"action":"navigate","url":"https://auth.example.com/signin"},
+                      {"action":"type","selector":"#account","value":"{{config.user}}"},
+                      {"action":"type","selector":"#password","value":"{{secret.password}}"},
+                      {"action":"click","selector":"#login-submit"}],
+         "getDocuments":[{"action":"navigate","url":"https://manager.example.com/billing"},
+                         {"action":"printPdf","document":{"id":"x","date":"2026-01-01"}}]}
+        """
+
+        await test("The form the user is filling in is never navigated away from") {
+            // Reported as "the credentials are filled in, then nothing happens
+            // and the page reloads". checkAuth begins by navigating, so asking
+            // it while the login form is on screen wipes what was typed.
+            let session = makePortal()
+            session.signInAfterChecks = 999          // the user never finishes
+            let manifest = try PluginManifest.decode(from: Data(plugin.utf8))
+
+            var runner = PluginRunner(manifest: manifest,
+                                      sessionFactory: FakeSessionFactory(session: session),
+                                      vault: CredentialVault())
+            runner.interactiveSignInBudget = .milliseconds(400)
+            runner.runBudget = .seconds(5)
+
+            var source = Source(entityID: UUID(), pluginID: "portal",
+                                pluginVersion: "1.0.0", displayName: "Portal")
+            source.config = ["user": "someone"]
+            source.rememberCredentials = false
+
+            _ = await runner.run(source: source, mode: .authenticateOnly)
+
+            // startAuth navigates to the sign-in page once. Every later
+            // navigation to the manager is checkAuth reloading the page the
+            // user is working on.
+            let afterSignInPage = session.navigationLog
+                .drop(while: { $0 != "https://auth.example.com/signin" })
+                .dropFirst()
+            expect(afterSignInPage.isEmpty,
+                   "navigated away from the sign-in flow: \(Array(afterSignInPage))")
+        }
+
+        await test("Once the user leaves the sign-in host, the real check runs") {
+            let session = makePortal()
+            session.signInAfterChecks = 999
+            // The user got through: the browser is on the manager now.
+            session.currentURLValue = URL(string: "https://manager.example.com/billing")
+
+            let manifest = try PluginManifest.decode(from: Data(plugin.utf8))
+            var runner = PluginRunner(manifest: manifest,
+                                      sessionFactory: FakeSessionFactory(session: session),
+                                      vault: CredentialVault())
+            runner.interactiveSignInBudget = .seconds(3)
+            runner.runBudget = .seconds(10)
+
+            var source = Source(entityID: UUID(), pluginID: "portal",
+                                pluginVersion: "1.0.0", displayName: "Portal")
+            source.config = ["user": "someone"]
+            source.rememberCredentials = false
+
+            let outcome = await runner.run(source: source, mode: .authenticateOnly)
+            expect(outcome.status == .succeeded, "sign-in was not detected: \(outcome.status)")
+        }
+    }
+}
