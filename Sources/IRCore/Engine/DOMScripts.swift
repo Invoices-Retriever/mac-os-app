@@ -242,6 +242,10 @@ enum DOMScripts {
           }
         }
         if (el.tagName === 'A' && el.href) attrs.push('[href~' + (el.href.split('?')[0].split('/').slice(0,4).join('/')) + ']');
+        // A frame's source is the single most useful thing on a page that
+        // renders its real content inside one: a plugin can often just go
+        // there directly.
+        if ((el.tagName === 'IFRAME' || el.tagName === 'FRAME') && el.src) attrs.push('[src=' + el.src.split('?')[0] + ']');
         return attrs.join('');
       };
       const lines = [];

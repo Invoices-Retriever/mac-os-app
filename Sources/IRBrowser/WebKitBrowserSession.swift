@@ -372,6 +372,15 @@ public final class WebKitBrowserSession: NSObject, BrowserSession {
         return responses
     }
 
+    /// Remembers a subframe so the DOM steps can reach into it.
+    fileprivate func noteFrame(_ frame: WKFrameInfo) {
+        guard !frame.isMainFrame else { return }
+        childFrames.removeAll { $0 == frame }
+        childFrames.append(frame)
+        // Portals nest a few frames at most; anything more is an ad network.
+        if childFrames.count > 8 { childFrames.removeFirst() }
+    }
+
     fileprivate func record(_ response: ObservedResponse) {
         lastActivityAt = Date()
         // Bounded: a single-page app can fire hundreds of requests, and holding
@@ -395,6 +404,16 @@ public final class WebKitBrowserSession: NSObject, BrowserSession {
     /// called — cheaper and far more robust than scraping a rendered table.
     private static let networkObserverScript = """
     (function() {
+      // Announce this frame. WKScriptMessage carries the frame it came from,
+      // and that is the only dependable way to obtain a WKFrameInfo: a new
+      // iframe has no targetFrame in decidePolicyFor, so watching navigation
+      // misses exactly the frames that matter.
+      try {
+        window.webkit.messageHandlers.irNetwork.postMessage({
+          url: String(location.href), status: -1, body: null, hello: true
+        });
+      } catch (e) {}
+
       const post = (url, status, body) => {
         try {
           window.webkit.messageHandlers.irNetwork.postMessage({
@@ -454,13 +473,6 @@ extension WebKitBrowserSession: WKNavigationDelegate {
             return
         }
         lastActivityAt = Date()
-        if let frame = navigationAction.targetFrame, !frame.isMainFrame {
-            // Portals built as a shell around an application — OVHcloud's
-            // manager is one — put everything worth reading in a subframe.
-            childFrames.removeAll { $0 === frame }
-            childFrames.append(frame)
-            if childFrames.count > 8 { childFrames.removeFirst() }
-        }
         decisionHandler(.allow)
     }
 
@@ -626,7 +638,13 @@ private final class NetworkObserver: NSObject, WKScriptMessageHandler {
 
     func userContentController(_ controller: WKUserContentController,
                                didReceive message: WKScriptMessage) {
-        guard let payload = message.body as? [String: Any],
+        guard let payload = message.body as? [String: Any] else { return }
+        let frame = message.frameInfo
+
+        MainActor.assumeIsolated { session?.noteFrame(frame) }
+
+        // The announcement carries no response, only the frame it came from.
+        guard payload["hello"] == nil,
               let urlString = payload["url"] as? String,
               let url = URL(string: urlString) else { return }
         let status = (payload["status"] as? Int) ?? 0
