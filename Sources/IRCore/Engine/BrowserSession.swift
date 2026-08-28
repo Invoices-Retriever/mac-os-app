@@ -68,6 +68,14 @@ public struct ObservedResponse: Sendable, Hashable {
 /// accounts never see each other's cookies.
 public protocol BrowserSessionFactory: Sendable {
     func makeSession(sourceID: UUID, policy: DomainPolicy) async throws -> any BrowserSession
+    /// Closes a source's browser. A factory that keeps sessions alive between
+    /// runs — which is what makes a sign-in outlive a single collection — needs
+    /// telling when a source is gone.
+    func release(sourceID: UUID) async
+}
+
+public extension BrowserSessionFactory {
+    func release(sourceID: UUID) async {}
 }
 
 // MARK: - JSON values

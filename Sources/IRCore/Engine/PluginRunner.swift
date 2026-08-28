@@ -69,6 +69,10 @@ public struct PluginRunner: Sendable {
         // A sign-in that waits for someone to fetch their phone must not eat
         // the time getDocuments will need afterwards, so the deadline is a
         // reference the interactive wait pushes forward.
+        // The browser belongs to the source, not to this run: it is created
+        // once by the factory and kept, because a portal's sign-in usually
+        // lives in session cookies that no data store persists. A run hides the
+        // window when it is done and leaves the session alone.
         let deadline = Deadline(runBudget.seconds)
         var session: (any BrowserSession)?
         /// The page as it was when the engine handed over to the user.
@@ -124,7 +128,7 @@ public struct PluginRunner: Sendable {
             // --- Do the work ------------------------------------------------
             switch mode {
             case .authenticateOnly:
-                await close(created)
+                await created.setVisible(false)
                 return Outcome(status: .succeeded, documents: [], exposedOptions: [],
                                error: nil, outline: handOverOutline)
 
@@ -132,14 +136,12 @@ public struct PluginRunner: Sendable {
                 if let steps = manifest.getConfigOptions {
                     try await executor.run(steps, section: "getConfigOptions")
                 }
-                await close(created)
                 return Outcome(status: .succeeded, documents: [],
                                exposedOptions: context.exposedOptions, error: nil)
 
             case .collect:
                 await created.setVisible(false)
                 try await executor.run(manifest.getDocuments, section: "getDocuments")
-                await close(created)
                 return Outcome(status: .succeeded, documents: context.documents,
                                exposedOptions: context.exposedOptions, error: nil)
             }
@@ -160,22 +162,10 @@ public struct PluginRunner: Sendable {
                 status = .failed
             }
             logger.error("run failed: \(error.localizedDescription)", source: source.id, run: runID)
-            if let session { await close(session) }
+            await session?.setVisible(false)
             return Outcome(status: status, documents: [], exposedOptions: [],
                            error: error, screenshot: screenshot, outline: outline)
         }
-    }
-
-    /// Closes the browser at the end of a run.
-    ///
-    /// Leaving it open leaked a window and a web view per run, and — the part
-    /// that was actually reported — WebKit had not necessarily written the
-    /// session cookies to disk yet. A collection started moments after a
-    /// successful sign-in read a store that did not have them and announced
-    /// that the session had expired. Closing settles the store before the next
-    /// run opens it.
-    private func close(_ session: any BrowserSession) async {
-        await session.close()
     }
 
     // MARK: - Authentication

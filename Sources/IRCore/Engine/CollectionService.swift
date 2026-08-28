@@ -371,6 +371,9 @@ public actor CollectionService {
     @discardableResult
     public func deleteSource(_ source: Source, purgeCredentials: Bool) async throws -> Int {
         cancel(sourceID: source.id)
+        // Close its browser too, or a deleted source leaves a signed-in window
+        // behind holding its cookies.
+        await sessionFactory.release(sourceID: source.id)
         var purged = 0
         if purgeCredentials {
             purged = try vault.purge(source: source.id)
