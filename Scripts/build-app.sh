@@ -32,8 +32,45 @@ done
 
 echo "→ Bundle: $APP"
 
+# Pick a signing identity, in order of what it is good for.
+#
+# Any stable identity solves the daily annoyance: macOS decides who may read a
+# keychain item from the signature of the application that created it, and an
+# ad-hoc signature is derived from the binary, so every rebuild looks like a
+# different application and asks again.
+if [ -z "${IR_SIGNING_IDENTITY:-}" ]; then
+    # find-identity prints:  1) <SHA1> "Name of the identity"
+    # Pull out the quoted names first, then choose among them, rather than
+    # building a regular expression out of a name containing spaces.
+    NAMES="$(security find-identity -v -p codesigning 2>/dev/null \
+        | sed -n 's/.*"\(.*\)".*/\1/p')"
+    for CANDIDATE in "Developer ID Application" "Apple Development" "Invoices Retriever Development"; do
+        # `|| true`: not finding the first candidate is the normal case, and
+        # with `set -e -o pipefail` a bare grep miss would end the script.
+        MATCH="$(printf '%s\n' "$NAMES" | grep -F "$CANDIDATE" | head -1 || true)"
+        if [ -n "$MATCH" ]; then
+            IR_SIGNING_IDENTITY="$MATCH"
+            # Only a Developer ID is fit to hand to someone else.
+            case "$CANDIDATE" in "Developer ID Application") ;; *) IR_LOCAL_IDENTITY=1 ;; esac
+            break
+        fi
+    done
+fi
+
 if [ -n "${IR_SIGNING_IDENTITY:-}" ]; then
-    echo "→ Signing with $IR_SIGNING_IDENTITY…"
+    echo "→ Signing with ${IR_SIGNING_IDENTITY}…"
+    # A self-signed local certificate has no timestamp authority behind it, and
+    # the hardened runtime is only meaningful for something being distributed.
+    if [ -n "${IR_LOCAL_IDENTITY:-}" ]; then
+        codesign --force --deep \
+            --entitlements "$ROOT/Resources/InvoicesRetriever.entitlements" \
+            --sign "$IR_SIGNING_IDENTITY" "$APP"
+        codesign --verify --strict "$APP"
+        echo "→ Signed with the local development identity, which is stable across"
+        echo "  builds — so the keychain stops asking. Not for distribution."
+        exit 0
+    fi
+
     codesign --force --deep --options runtime --timestamp \
         --entitlements "$ROOT/Resources/InvoicesRetriever.entitlements" \
         --sign "$IR_SIGNING_IDENTITY" "$APP"
@@ -51,7 +88,7 @@ else
     echo
     echo "  Note: an ad-hoc signature changes with every build, so macOS treats each"
     echo "  build as a different application and asks again for keychain access to"
-    echo "  saved credentials. That is a property of unsigned builds, not of the app —"
-    echo "  a Developer ID signature keeps one identity across releases and the prompt"
-    echo "  stops. Answering \"Always Allow\" holds until the next rebuild."
+    echo "  saved credentials. To stop that while working on the app, run once:"
+    echo
+    echo "      ./Scripts/dev-signing-identity.sh"
 fi

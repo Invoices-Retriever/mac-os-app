@@ -463,9 +463,22 @@ extension WebKitBrowserSession: WKNavigationDelegate {
 
     private func translate(_ error: any Error) -> any Error {
         let nsError = error as NSError
-        // A cancelled load is what the domain policy produces, and also what a
-        // page does to itself when it redirects mid-flight. Only the former is
-        // an error worth reporting.
+
+        // A load stopped by the content blocker must name the host it wanted.
+        //
+        // WebKit's own message — "the URL was blocked by a content blocker" —
+        // is true and useless: the whole point of allowedDomains is that a
+        // contributor can fix it, and they cannot fix a host nobody names. This
+        // cost a debugging round trip on OVHcloud's two-factor step, where the
+        // submit was blocked and the log said only that something had been.
+        if let host = blockedNavigationHost(from: nsError) {
+            blockedHost = nil
+            return IRError.domainNotAllowed(host: host, allowed: policy.patterns)
+        }
+
+        // A cancelled load is what the navigation delegate produces when it
+        // refuses a URL, and also what a page does to itself when it redirects
+        // mid-flight. Only the former is an error worth reporting.
         if nsError.code == NSURLErrorCancelled {
             if let host = blockedHost {
                 blockedHost = nil
@@ -474,6 +487,27 @@ extension WebKitBrowserSession: WKNavigationDelegate {
             return CancellationError()
         }
         return error
+    }
+
+    /// The host a blocked navigation was heading for, from whichever key
+    /// WebKit happened to put it under.
+    private func blockedNavigationHost(from error: NSError) -> String? {
+        let isBlocked = error.domain == WKError.errorDomain
+            && error.code == WKError.Code.contentRuleListStoreLookUpFailed.rawValue
+            || error.localizedDescription.lowercased().contains("content blocker")
+            || error.localizedDescription.lowercased().contains("bloqueur de contenu")
+        guard isBlocked else { return nil }
+
+        for key in [NSURLErrorFailingURLStringErrorKey, "NSErrorFailingURLStringKey",
+                    NSURLErrorFailingURLErrorKey] {
+            if let string = error.userInfo[key] as? String, let host = URL(string: string)?.host {
+                return host
+            }
+            if let url = error.userInfo[key] as? URL, let host = url.host {
+                return host
+            }
+        }
+        return blockedHost ?? webView.url?.host ?? "an undisclosed host"
     }
 }
 
