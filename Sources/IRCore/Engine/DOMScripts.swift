@@ -128,7 +128,19 @@ enum DOMScripts {
           \(pressEnter ? """
           el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
           el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
-          if (el.form && typeof el.form.requestSubmit === 'function') { el.form.requestSubmit(); }
+          if (el.form && typeof el.form.requestSubmit === 'function') {
+            // Submit *through the button* when there is one.
+            //
+            // requestSubmit() with no argument submits without a submitter, so
+            // a named submit button contributes no name/value pair. OVHcloud's
+            // two-factor form has button[name="otpMethod"], and without it the
+            // server is told a form was submitted but not which method was
+            // chosen — the page simply comes back, which from the user's side
+            // looks like pressing return does nothing at all.
+            const submitter = el.form.querySelector('button[type="submit"], input[type="submit"]');
+            if (submitter) { el.form.requestSubmit(submitter); }
+            else { el.form.requestSubmit(); }
+          }
           """ : "")
           return { ok: true };
         })()
