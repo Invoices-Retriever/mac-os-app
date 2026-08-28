@@ -82,6 +82,17 @@ func runEngineSuites() async {
             expect(!StepExecutor.matches(pattern: "https://example.com/*/bills",
                                          value: "https://other.com/42/bills"))
         }
+        await test("A host pattern with a wildcard in the middle works") {
+            // The shape the OVHcloud plugin relies on to tell the manager from
+            // the sign-in page it is redirected to when the session is gone.
+            let manager = "https://manager.*.ovhcloud.com/*"
+            expect(StepExecutor.matches(pattern: manager,
+                                        value: "https://manager.eu.ovhcloud.com/#/billing/history"))
+            expect(StepExecutor.matches(pattern: manager,
+                                        value: "https://manager.ca.ovhcloud.com/#/billing/history"))
+            expect(!StepExecutor.matches(pattern: manager,
+                                         value: "https://auth.eu.ovhcloud.com/signin/?action=disconnect"))
+        }
         await test("Regular expression metacharacters in a pattern are literal") {
             expect(StepExecutor.matches(pattern: "a.b", value: "https://x/a.b"))
             expect(!StepExecutor.matches(pattern: "https://x/a.b", value: "https://x/axb"))
