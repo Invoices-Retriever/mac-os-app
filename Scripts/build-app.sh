@@ -48,4 +48,10 @@ else
     codesign --force --deep --sign - "$APP" 2>/dev/null || true
     echo "→ Ad-hoc signed (development only)."
     echo "  Set IR_SIGNING_IDENTITY to a Developer ID Application certificate for a distributable build."
+    echo
+    echo "  Note: an ad-hoc signature changes with every build, so macOS treats each"
+    echo "  build as a different application and asks again for keychain access to"
+    echo "  saved credentials. That is a property of unsigned builds, not of the app —"
+    echo "  a Developer ID signature keeps one identity across releases and the prompt"
+    echo "  stops. Answering \"Always Allow\" holds until the next rebuild."
 fi

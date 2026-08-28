@@ -173,6 +173,22 @@ public struct Store: Sendable {
         return run
     }
 
+    /// Closes runs that were still marked running when the application stopped.
+    ///
+    /// Nothing can be running at launch: a run lives in the process. Left alone
+    /// they sit in the journal as permanently in-progress, which is both untrue
+    /// and hides the last real result behind a row that never resolves.
+    @discardableResult
+    public func closeInterruptedRuns() async throws -> Int {
+        try await database.run("""
+            UPDATE run SET status = ?, finished_at = COALESCE(finished_at, started_at),
+                           error_message = COALESCE(error_message, ?)
+            WHERE status = ?
+            """, [.text(RunStatus.cancelled.rawValue),
+                  .text(core("Interrupted when the application quit")),
+                  .text(RunStatus.running.rawValue)])
+    }
+
     public func appendLog(_ record: RedactingLogger.LogRecord) async throws {
         guard let runID = record.runID else { return }
         // The message has already been through redaction on its way out of the

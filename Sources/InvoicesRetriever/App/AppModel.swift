@@ -75,6 +75,10 @@ final class AppModel {
                 try paths.ensureDirectoriesExist()
             }
 
+            // Nothing survives a quit, so anything still marked running is a
+            // leftover rather than a run.
+            try? await store.closeInterruptedRuns()
+
             entity = try await store.defaultEntity()
             documentFilter.entityID = entity?.id
 
@@ -169,10 +173,9 @@ final class AppModel {
 
         do {
             if rememberCredentials {
-                for (key, value) in secrets where !value.isEmpty {
-                    try vault.store(value, for: key, source: source.id,
-                                    requireBiometrics: requireBiometrics)
-                }
+                // One write, one keychain item, one authorisation prompt.
+                try vault.store(secrets.filter { !$0.value.isEmpty },
+                                source: source.id, requireBiometrics: requireBiometrics)
             }
             try await store.upsert(source)
             await reload()
@@ -197,14 +200,7 @@ final class AppModel {
 
     func setSecrets(_ secrets: [String: String], for source: Source, requireBiometrics: Bool) async {
         do {
-            for (key, value) in secrets {
-                if value.isEmpty {
-                    try? vault.store("", for: key, source: source.id)
-                } else {
-                    try vault.store(value, for: key, source: source.id,
-                                    requireBiometrics: requireBiometrics)
-                }
-            }
+            try vault.store(secrets, source: source.id, requireBiometrics: requireBiometrics)
         } catch {
             alert = AlertContent(title: t("Could not save to the keychain"),
                                  message: error.localizedDescription)

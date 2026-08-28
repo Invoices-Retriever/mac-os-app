@@ -251,7 +251,11 @@ public actor CollectionService {
     /// plugin. It carries no page text — see `DOMScripts.outline` — so it is
     /// safe to attach to an issue, which is the whole point of it.
     private func saveOutline(_ outline: String, runID: UUID) throws -> String {
-        let directory = library.root.appendingPathComponent(".invoices-retriever/diagnostics", isDirectory: true)
+        try Self.writeOutline(outline, runID: runID, root: library.root)
+    }
+
+    static func writeOutline(_ outline: String, runID: UUID, root: URL) throws -> String {
+        let directory = root.appendingPathComponent(".invoices-retriever/diagnostics", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let url = directory.appendingPathComponent("\(runID.uuidString).outline.txt")
         try Data(outline.utf8).write(to: url, options: .atomic)
@@ -289,8 +293,24 @@ public actor CollectionService {
             guard let manifest = await catalog.manifest(id: source.pluginID) else {
                 throw IRError.invalidPlugin("plugin '\(source.pluginID)' is not installed")
             }
-            let runner = PluginRunner(manifest: manifest, sessionFactory: sessionFactory,
+            var runner = PluginRunner(manifest: manifest, sessionFactory: sessionFactory,
                                       vault: vault, logger: logger)
+            // Write it while the user is still looking at the screen it
+            // describes, not once the run is over.
+            let runID = run.id
+            let store = self.store
+            let root = library.root
+            runner.onHandOver = { outline in
+                guard let path = try? Self.writeOutline(outline, runID: runID, root: root) else { return }
+                var partial = Run(id: runID, sourceID: source.id, startedAt: Date())
+                partial.outlinePath = path
+                if var current = try? await store.runs(sourceID: source.id, limit: 5)
+                    .first(where: { $0.id == runID }) {
+                    current.outlinePath = path
+                    partial = current
+                }
+                try? await store.upsert(partial)
+            }
             let outcome = await runner.run(source: source, mode: .authenticateOnly, runID: run.id)
 
             if let screenshot = outcome.screenshot {
@@ -310,6 +330,12 @@ public actor CollectionService {
             }
 
             run.status = .succeeded
+            // Keep the hand-over outline even on success: the sign-in worked
+            // because a person did the part the plugin could not, and that page
+            // is what a contributor needs to teach it the missing step.
+            if let outline = outcome.outline, !outline.isEmpty {
+                run.outlinePath = try? saveOutline(outline, runID: run.id)
+            }
             try? await store.upsert(run)
 
             var updated = source

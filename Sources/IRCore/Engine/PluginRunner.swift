@@ -18,6 +18,11 @@ public struct PluginRunner: Sendable {
     /// How long we will wait for a person to finish signing in.
     public var interactiveSignInBudget: Duration = .seconds(300)
 
+    /// Called the moment the engine hands over to the user, with the page as it
+    /// stood. Reported then rather than at the end of the run: a diagnostic you
+    /// can only read once you are unstuck is no use while you are stuck.
+    public var onHandOver: (@Sendable (String) async -> Void)?
+
     public init(manifest: PluginManifest,
                 sessionFactory: any BrowserSessionFactory,
                 vault: CredentialVault,
@@ -66,13 +71,17 @@ public struct PluginRunner: Sendable {
         // reference the interactive wait pushes forward.
         let deadline = Deadline(runBudget.seconds)
         var session: (any BrowserSession)?
+        /// The page as it was when the engine handed over to the user.
+        var handOverOutline: String?
 
         do {
+            // One keychain read for the whole source; the codes are derived
+            // from the seeds already in hand rather than fetched again.
             let secrets = source.rememberCredentials
                 ? try vault.secrets(for: source, manifest: manifest)
                 : [:]
             let totpCodes = source.rememberCredentials
-                ? try vault.totpCodes(for: source, manifest: manifest)
+                ? try vault.totpCodes(from: secrets, manifest: manifest)
                 : [:]
 
             let context = ExecutionContext(
@@ -108,14 +117,15 @@ public struct PluginRunner: Sendable {
                     let signInHost = await created.currentURL()?.host?.lowercased()
                     try await signIn(executor: executor, session: created, context: context,
                                      source: source, runID: runID, deadline: deadline,
-                                     signInHost: signInHost)
+                                     signInHost: signInHost, handOverOutline: &handOverOutline)
                 }
             }
 
             // --- Do the work ------------------------------------------------
             switch mode {
             case .authenticateOnly:
-                return Outcome(status: .succeeded, documents: [], exposedOptions: [], error: nil)
+                return Outcome(status: .succeeded, documents: [], exposedOptions: [],
+                               error: nil, outline: handOverOutline)
 
             case .discoverOptions:
                 if let steps = manifest.getConfigOptions {
@@ -136,7 +146,8 @@ public struct PluginRunner: Sendable {
             // useful thing for fixing a broken plugin. It stays on this
             // machine; nothing uploads it, ever.
             let screenshot = try? await session?.captureScreenshot()
-            let outline = try? await session?.captureDOMOutline()
+            // A failure is more informative than the hand-over, so it wins.
+            let outline = (try? await session?.captureDOMOutline()) ?? handOverOutline
             let status: RunStatus
             if let irError = error as? IRError, irError.needsUserSignIn {
                 status = .needsSignIn
@@ -185,7 +196,8 @@ public struct PluginRunner: Sendable {
                         source: Source,
                         runID: UUID,
                         deadline: Deadline,
-                        signInHost: String?) async throws {
+                        signInHost: String?,
+                        handOverOutline: inout String?) async throws {
 
         await session.setVisible(true)
 
@@ -232,6 +244,17 @@ public struct PluginRunner: Sendable {
         }
 
         logger.info("waiting for you to finish signing in", source: source.id, run: runID)
+
+        // The moment automation gave up and a person had to step in is the one
+        // most worth recording: it is where startAuth stops matching the portal.
+        // A two-factor screen the plugin does not recognise looks exactly like
+        // this, and without the page's structure the next guess at a selector is
+        // as blind as the last.
+        handOverOutline = try? await session.captureDOMOutline()
+        if let handOverOutline, !handOverOutline.isEmpty {
+            await onHandOver?(handOverOutline)
+        }
+
         let startedWaiting = Date()
         let signInDeadline = Date().addingTimeInterval(interactiveSignInBudget.seconds)
         let succeeded = await session.waitForUserSignIn(until: signInDeadline) {

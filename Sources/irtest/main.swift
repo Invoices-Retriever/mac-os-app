@@ -105,6 +105,24 @@ await suite("TOTP") {
     await test("Spaces in a pasted secret are tolerated") {
         expectEqual(TOTP.normaliseSecret("gezd gnbv gy3t qojq")?.secret, "GEZDGNBVGY3TQOJQ")
     }
+    await test("Codes are derived from seeds already in hand, not fetched again") {
+        // Reading the seed a second time to generate a code cost a second
+        // keychain prompt for a value the caller already had.
+        var manifest = try decodeGoodPlugin()
+        manifest.configSchema = ["mfa": ConfigField(type: .totp, label: "Two-factor")]
+
+        let codes = try CredentialVault().totpCodes(
+            from: ["mfa": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"], manifest: manifest)
+        expectEqual(codes["mfa"]?.count, 6)
+        expect(codes["mfa"]?.allSatisfy(\.isNumber) == true)
+    }
+
+    await test("A field with no stored seed produces no code, rather than failing") {
+        var manifest = try decodeGoodPlugin()
+        manifest.configSchema = ["mfa": ConfigField(type: .totp, label: "Two-factor")]
+        expect(try CredentialVault().totpCodes(from: [:], manifest: manifest).isEmpty)
+    }
+
     await test("A secret that is not base32 is refused, not mangled") {
         expect(TOTP.normaliseSecret("not-base32-!!!") == nil)
     }
