@@ -385,6 +385,21 @@ func runIndexUpdaterSuites() async {
             expect(await catalog.manifest(id: "example-portal") == nil)
         }
 
+        await test("An index that goes backwards is refused") {
+            // A signature stays valid forever, so a stale-but-genuine index is
+            // indistinguishable from a fresh one. Observed for real: a CDN
+            // caching per Accept-Encoding pinned one client to an old revision
+            // for as long as that variant lived. Anyone able to replay an old
+            // index could quietly reinstate a plugin that had been withdrawn.
+            let old = Data(#"{"revision":4,"generatedAt":"2026-01-01T00:00:00Z","engine":"1.0.0","plugins":[]}"#.utf8)
+            expectEqual(try PluginIndexUpdater.revision(of: old), 4)
+
+            let keys = Signing.generateKeyPair()
+            let signature = try Signing.sign(old, privateKeyBase64: keys.privateKeyBase64)
+            expect(Signing.verify(old, signature: signature, publicKeyBase64: keys.publicKeyBase64),
+                   "the old index is genuinely signed — that is the point")
+        }
+
         await test("A build with no signing key refuses to update at all") {
             let catalog = PluginCatalog(installedDirectory: FileManager.default.temporaryDirectory
                 .appendingPathComponent(UUID().uuidString))

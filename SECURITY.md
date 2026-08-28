@@ -68,6 +68,20 @@ on their next index refresh — a plugin that disappears from the index is
 uninstalled rather than left in place. An advisory goes out on this repository
 the same day.
 
+That only works if the refresh actually sees the new index, which is less
+automatic than it sounds. A signature stays valid forever, so an old index is
+indistinguishable from a current one on its own merits. Two things guard it:
+
+- The updater refuses an index announcing a revision lower than the last one it
+  applied. Revisions only go up.
+- It fetches uncompressed. Hosts cache per `Vary: Accept-Encoding`, and we
+  observed raw.githubusercontent.com serving revision 6 to one encoding and a
+  stale revision 5 to another, well past expiry — which would have pinned every
+  client to an index missing the withdrawal.
+
+If you find another way to hold a client on a stale index, that is in scope and
+worth reporting.
+
 ## Verifying a release
 
 Releases are signed and notarised, and ship with an SBOM. To check a download:

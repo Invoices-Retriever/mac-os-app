@@ -24,14 +24,35 @@ public struct PluginIndexUpdater: Sendable {
     private let session: URLSession
     private let logger: RedactingLogger
 
+    /// The index this build last applied. An index announcing an older
+    /// revision is refused: see `update`.
+    public let minimumRevision: Int
+
     public init(indexURL: URL,
                 publicKeyBase64: String = PluginCatalog.indexPublicKeyBase64,
-                session: URLSession = .shared,
+                minimumRevision: Int = 0,
+                session: URLSession? = nil,
                 logger: RedactingLogger = .shared) {
         self.indexURL = indexURL
         self.publicKeyBase64 = publicKeyBase64
-        self.session = session
+        self.minimumRevision = minimumRevision
+        self.session = session ?? URLSession(configuration: Self.ephemeralConfiguration)
         self.logger = logger
+    }
+
+    /// A session with no cache at all.
+    ///
+    /// `URLSession.shared` writes to a shared on-disk cache, and a CDN happily
+    /// marks the index cacheable for minutes. Setting a cache policy on the
+    /// request is not enough — it was still handing back a five-minute-old
+    /// index in practice. That matters beyond staleness: withdrawing a
+    /// compromised plugin only protects anyone if the next refresh actually
+    /// sees the index without it.
+    private static var ephemeralConfiguration: URLSessionConfiguration {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        return configuration
     }
 
     /// The detached signature sits next to the index.
@@ -49,6 +70,15 @@ public struct PluginIndexUpdater: Sendable {
         logger.info("fetching the plugin index from \(indexURL.absoluteString)")
         let index = try await fetch(indexURL)
         let signature = try await fetch(signatureURL)
+
+        // Anti-rollback. A signature stays valid forever, so anyone able to
+        // serve an old-but-genuine index could quietly reinstate a plugin that
+        // was withdrawn. Revisions only go up.
+        if minimumRevision > 0, let announced = try? Self.revision(of: index), announced < minimumRevision {
+            throw IRError.invalidPlugin(core(
+                "The plugin index went backwards, from revision %1$@ to %2$@. Refusing it.",
+                String(minimumRevision), String(announced)))
+        }
 
         let base = indexURL.deletingLastPathComponent()
         return try await catalog.applyIndex(index, signature: signature,
@@ -82,12 +112,34 @@ public struct PluginIndexUpdater: Sendable {
         return url
     }
 
+    /// Reads the revision without trusting the rest of the document, so the
+    /// rollback check happens before anything else is acted on.
+    static func revision(of index: Data) throws -> Int {
+        struct Envelope: Decodable { let revision: Int }
+        return try JSONDecoder().decode(Envelope.self, from: index).revision
+    }
+
     private func fetch(_ url: URL) async throws -> Data {
         var request = URLRequest(url: url)
         request.timeoutInterval = 30
-        // The index is a static file; a stale one would silently hold back a
-        // fix to a broken plugin.
-        request.cachePolicy = .reloadRevalidatingCacheData
+
+        // Ask for the uncompressed representation, deliberately.
+        //
+        // The index is a few kilobytes, so compression buys nothing — and the
+        // host caches per `Vary: Accept-Encoding`. Observed in practice on
+        // raw.githubusercontent.com: the identity variant was serving revision
+        // 6 while the gzip variant, which URLSession asks for by default, was
+        // still serving revision 5 well past its expiry. The signature on the
+        // stale copy is perfectly valid, so nothing downstream can notice.
+        //
+        // A client pinned to a stale variant never sees a withdrawn plugin get
+        // withdrawn, which is the one thing the index has to be able to do.
+        request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
+        // Ignore the cache outright rather than revalidate. The index is a few
+        // kilobytes fetched when a person presses a button, and a CDN happily
+        // serving a five-minute-old copy would silently withhold the fix to a
+        // broken plugin — or, worse, the removal of a withdrawn one.
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
 
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else {

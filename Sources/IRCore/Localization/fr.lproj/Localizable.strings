@@ -15,6 +15,7 @@
 "Keychain: %@" = "Trousseau : %@";
 "Storage: %@" = "Stockage : %@";
 "Export: %@" = "Export : %@";
+"The plugin index went backwards, from revision %1$@ to %2$@. Refusing it." = "L'index des plugins est revenu en arrière, de la révision %1$@ à %2$@. Refusé.";
 "Cancelled" = "Annulé";
 
 /* --- État d'exécution --------------------------------------------------- */

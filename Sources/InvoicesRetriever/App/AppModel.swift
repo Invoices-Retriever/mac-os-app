@@ -448,7 +448,14 @@ final class AppModel {
         defer { isRefreshingCatalogue = false }
 
         do {
-            let update = try await PluginIndexUpdater(indexURL: url).update(catalog)
+            let update = try await PluginIndexUpdater(
+                indexURL: url, minimumRevision: preferences.lastIndexRevision).update(catalog)
+
+            if update.revision > preferences.lastIndexRevision {
+                var updated = preferences
+                updated.lastIndexRevision = update.revision
+                await save(updated)
+            }
             await reload()
 
             var parts: [String] = []

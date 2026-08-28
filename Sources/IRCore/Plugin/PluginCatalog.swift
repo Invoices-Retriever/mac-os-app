@@ -245,6 +245,10 @@ public actor PluginCatalog {
         public var updated: [String]
         public var removed: [String]
         public var skipped: [String: String]
+        /// Which index this came from. The first thing worth knowing when the
+        /// catalogue does not match what the repository says it should.
+        public var revision: Int = 0
+        public var generatedAt: Date = .distantPast
     }
 
     /// Verifies the detached Ed25519 signature over the index bytes, then
@@ -316,6 +320,8 @@ public actor PluginCatalog {
             update.removed.append(id)
         }
 
+        update.revision = index.revision
+        update.generatedAt = index.generatedAt
         logger.info("index revision \(index.revision): +\(update.installed.count) ~\(update.updated.count) -\(update.removed.count)")
         return update
     }

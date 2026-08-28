@@ -287,6 +287,7 @@ struct IRCTL {
 
         let update = try await PluginIndexUpdater(indexURL: url, publicKeyBase64: key).update(catalog)
         print("✓ signature verified")
+        print("→ revision: \(update.revision), generated \(update.generatedAt.formatted())")
 
         let entries = await catalog.all()
         print("\n\(entries.count) plugin(s) in the index:")
