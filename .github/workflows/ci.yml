@@ -11,9 +11,18 @@ permissions:
 jobs:
   build:
     name: Build and test
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+
+      - name: Select the newest Swift toolchain on the runner
+        run: |
+          # Runner images ship several Xcodes and default to an older one;
+          # this package needs Swift 6. Picking the highest present avoids
+          # pinning a version that the image will drop in six months.
+          latest="$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)"
+          if [ -n "$latest" ]; then sudo xcode-select -s "$latest"; fi
+          swift --version
 
       - name: Cache the Swift build
         uses: actions/cache@v4
@@ -31,6 +40,15 @@ jobs:
       - name: Package the application
         run: ./Scripts/build-app.sh release
 
+      - name: Select the newest Swift toolchain on the runner
+        run: |
+          # Runner images ship several Xcodes and default to an older one;
+          # this package needs Swift 6. Picking the highest present avoids
+          # pinning a version that the image will drop in six months.
+          latest="$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)"
+          if [ -n "$latest" ]; then sudo xcode-select -s "$latest"; fi
+          swift --version
+
       - name: The schema is duplicated in three places and must not drift
         run: |
           diff -q schema/plugin-v1.schema.json Sources/IRCore/Resources/plugin-v1.schema.json
@@ -44,7 +62,7 @@ jobs:
 
   guarantees:
     name: Security guarantees
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
@@ -93,9 +111,18 @@ jobs:
 
   format:
     name: Formatting
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: Select the newest Swift toolchain on the runner
+        run: |
+          # Runner images ship several Xcodes and default to an older one;
+          # this package needs Swift 6. Picking the highest present avoids
+          # pinning a version that the image will drop in six months.
+          latest="$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)"
+          if [ -n "$latest" ]; then sudo xcode-select -s "$latest"; fi
+          swift --version
+
       - name: JSON is well formed
         run: |
           for file in schema/*.json Sources/IRCore/Resources/*.json; do
