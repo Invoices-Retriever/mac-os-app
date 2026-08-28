@@ -13,13 +13,13 @@ public actor StepExecutor {
     private let policy: DomainPolicy
     private let logger: RedactingLogger
     private let rateLimiter: RateLimiter
-    private let deadline: Date
+    private let deadline: Deadline
     private let observer: (any StepObserver)?
 
     public init(session: any BrowserSession,
                 context: ExecutionContext,
                 policy: DomainPolicy,
-                deadline: Date,
+                deadline: Deadline,
                 logger: RedactingLogger = .shared,
                 rateLimiter: RateLimiter = RateLimiter(),
                 observer: (any StepObserver)? = nil) {
@@ -39,8 +39,8 @@ public actor StepExecutor {
     public func run(_ steps: [PluginStep], section: String) async throws {
         for (index, step) in steps.enumerated() {
             try Task.checkCancellation()
-            guard Date() < deadline else {
-                throw IRError.runBudgetExhausted(seconds: 0)
+            guard await !deadline.hasPassed else {
+                throw IRError.runBudgetExhausted(seconds: Int(await deadline.budget))
             }
             let label = "\(section)[\(index)] \(step.displayName)"
             await observer?.willRun(step: step, path: label, context: context)
@@ -394,7 +394,7 @@ public actor StepExecutor {
 
     private func pollOptional(timeout: Duration,
                               until predicate: @Sendable () async -> Bool) async throws -> Bool {
-        let stepDeadline = min(Date().addingTimeInterval(timeout.seconds), deadline)
+        let stepDeadline = min(Date().addingTimeInterval(timeout.seconds), await deadline.date)
         while Date() < stepDeadline {
             try Task.checkCancellation()
             if await predicate() { return true }
@@ -496,5 +496,28 @@ public actor RateLimiter {
 extension Duration {
     public var seconds: Double {
         Double(components.seconds) + Double(components.attoseconds) / 1e18
+    }
+}
+
+
+/// A run's time budget, which the interactive sign-in can push forward.
+///
+/// A plain `Date` was wrong: it made the person's own time — finding a phone,
+/// typing a two-factor code — count against the automation's, so a careful
+/// sign-in left nothing for the collection it existed to unlock.
+public actor Deadline {
+    public private(set) var budget: TimeInterval
+    public private(set) var date: Date
+
+    public init(_ budget: TimeInterval) {
+        self.budget = budget
+        self.date = Date().addingTimeInterval(budget)
+    }
+
+    public var hasPassed: Bool { Date() >= date }
+
+    public func extend(by seconds: TimeInterval) {
+        guard seconds > 0 else { return }
+        date = date.addingTimeInterval(seconds)
     }
 }

@@ -132,6 +132,7 @@
 "One row per document, for reconciliation in a spreadsheet. Amounts use a dot decimal so any tool reads them." = "Une ligne par document, pour le rapprochement dans un tableur. Les montants utilisent le point décimal pour être lus par n'importe quel outil.";
 "Only when I ask" = "Seulement à ma demande";
 "Open the failure screenshot" = "Ouvrir la capture de l'échec";
+"Open the page structure" = "Ouvrir la structure de la page";
 "Open the portal and sign in now" = "Ouvrir le portail et se connecter maintenant";
 "Opening %@…" = "Ouverture de %@…";
 "Opening your library…" = "Ouverture de votre bibliothèque…";
@@ -214,6 +215,7 @@
 "Uses Apple's Vision framework. Nothing is sent anywhere." = "Utilise le framework Vision d'Apple. Rien n'est envoyé nulle part.";
 "Webhook" = "Webhook";
 "What leaves this Mac" = "Ce qui sort de ce Mac";
+"What the page was made of when it failed: tags, ids and classes, no text. This is what a selector is written against, and it is safe to attach to an issue." = "Ce dont la page était faite au moment de l'échec : balises, identifiants et classes, sans le texte. C'est ce contre quoi un sélecteur s'écrit, et c'est sans risque à joindre à un signalement.";
 "What this plugin can do" = "Ce que ce plugin peut faire";
 "You will be asked to sign in by hand on every run." = "Il vous sera demandé de vous connecter à la main à chaque exécution.";
 "You will sign in by hand in a browser window every time this source runs." = "Vous vous connecterez à la main dans une fenêtre de navigateur à chaque exécution de cette source.";

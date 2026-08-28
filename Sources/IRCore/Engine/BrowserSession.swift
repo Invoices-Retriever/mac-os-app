@@ -40,6 +40,9 @@ public protocol BrowserSession: AnyObject, Sendable {
     /// invoice as HTML.
     func printToPDF() async throws -> Data
     func captureScreenshot() async throws -> Data
+    /// Structure of the current page, with no text in it. Saved beside the
+    /// failure screenshot so a broken selector can be fixed from the report.
+    func captureDOMOutline() async throws -> String
 
     /// Responses observed since the last call, for `extractNetworkResponse`.
     func drainNetworkResponses() async -> [ObservedResponse]

@@ -126,7 +126,7 @@ func runEngineSuites() async {
             let context = try makeContext()
             let executor = StepExecutor(session: session, context: context,
                                         policy: manifest.domainPolicy,
-                                        deadline: Date().addingTimeInterval(30),
+                                        deadline: Deadline(30),
                                         rateLimiter: RateLimiter(minimumInterval: .milliseconds(1)))
             try await executor.run(manifest.getDocuments, section: "getDocuments")
 
@@ -159,7 +159,7 @@ func runEngineSuites() async {
             let context = try makeContext()
             let executor = StepExecutor(session: session, context: context,
                                         policy: manifest.domainPolicy,
-                                        deadline: Date().addingTimeInterval(30),
+                                        deadline: Deadline(30),
                                         rateLimiter: RateLimiter(minimumInterval: .milliseconds(1)))
             try await executor.run(manifest.getDocuments, section: "getDocuments")
             expectEqual(context.documents.count, 2)
@@ -178,7 +178,7 @@ func runEngineSuites() async {
 
             let executor = StepExecutor(session: session, context: context,
                                         policy: DomainPolicy(allowedDomains: ["example.com"]),
-                                        deadline: Date().addingTimeInterval(30),
+                                        deadline: Deadline(30),
                                         rateLimiter: RateLimiter(minimumInterval: .milliseconds(1)))
             await expectThrows { try await executor.run([step], section: "test") }
             expect(session.navigationLog.isEmpty, "no navigation should have been attempted")
@@ -194,7 +194,7 @@ func runEngineSuites() async {
 
             let executor = StepExecutor(session: session, context: context,
                                         policy: DomainPolicy(allowedDomains: ["example.com"]),
-                                        deadline: Date().addingTimeInterval(30))
+                                        deadline: Deadline(30))
             await expectThrows { try await executor.run([step], section: "checkAuth") }
         }
 
@@ -221,7 +221,7 @@ func runEngineSuites() async {
 
             let executor = StepExecutor(session: session, context: context,
                                         policy: DomainPolicy(allowedDomains: ["example.com"]),
-                                        deadline: Date().addingTimeInterval(30))
+                                        deadline: Deadline(30))
             try await executor.run([branch], section: "test")
             expectEqual(context.variable("banner")?.stringValue, "We use cookies")
             expect(context.variable("shouldNotHappen") == nil)
@@ -238,7 +238,7 @@ func runEngineSuites() async {
 
             let executor = StepExecutor(session: session, context: context,
                                         policy: DomainPolicy(allowedDomains: ["example.com"]),
-                                        deadline: Date().addingTimeInterval(30),
+                                        deadline: Deadline(30),
                                         rateLimiter: RateLimiter(minimumInterval: .milliseconds(1)))
             try await executor.run([step], section: "test")   // must not throw
         }
@@ -257,7 +257,7 @@ func runEngineSuites() async {
 
             let executor = StepExecutor(session: session, context: context,
                                         policy: DomainPolicy(allowedDomains: ["example.com"]),
-                                        deadline: Date().addingTimeInterval(30))
+                                        deadline: Deadline(30))
             try await executor.run([step], section: "test")
             expectEqual(context.variable("number")?.stringValue, "FR-2026-0042")
         }
@@ -279,7 +279,7 @@ func runEngineSuites() async {
 
             let executor = StepExecutor(session: session, context: context,
                                         policy: DomainPolicy(allowedDomains: ["example.com", "*.example.com"]),
-                                        deadline: Date().addingTimeInterval(30))
+                                        deadline: Deadline(30))
             try await executor.run([step], section: "test")
             expectEqual(context.variable("invoices")?.arrayValue?.count, 1)
         }
@@ -297,8 +297,20 @@ func runEngineSuites() async {
 
             let executor = StepExecutor(session: session, context: context,
                                         policy: DomainPolicy(allowedDomains: ["example.com"]),
-                                        deadline: Date().addingTimeInterval(30))
+                                        deadline: Deadline(30))
             await expectThrows { try await executor.run([step], section: "test") }
+        }
+
+        await test("Time the person spends signing in is given back") {
+            // A two-factor code fetched from a phone took two minutes; the
+            // collection that sign-in existed to unlock must still have its
+            // full budget afterwards.
+            let deadline = Deadline(30)
+            let before = await deadline.date
+            await deadline.extend(by: 120)
+            let after = await deadline.date
+            expect(after.timeIntervalSince(before) >= 119, "the wait was not refunded")
+            expect(await !deadline.hasPassed)
         }
 
         await test("The run budget stops a plugin that would otherwise loop") {
@@ -309,7 +321,7 @@ func runEngineSuites() async {
 
             let executor = StepExecutor(session: session, context: context,
                                         policy: DomainPolicy(allowedDomains: ["example.com"]),
-                                        deadline: Date().addingTimeInterval(-1))
+                                        deadline: Deadline(-1))
             await expectThrows { try await executor.run([step], section: "test") }
         }
     }

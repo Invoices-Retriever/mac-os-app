@@ -176,6 +176,9 @@ public actor CollectionService {
             if let screenshot = outcome.screenshot {
                 run.screenshotPath = try? saveScreenshot(screenshot, runID: run.id)
             }
+            if let outline = outcome.outline, !outline.isEmpty {
+                run.outlinePath = try? saveOutline(outline, runID: run.id)
+            }
 
             var stored: [InvoiceDocument] = []
             var duplicates = 0
@@ -244,6 +247,17 @@ public actor CollectionService {
         try? await store.upsert(updated)
     }
 
+    /// Written beside the screenshot, and only ever read by a human debugging a
+    /// plugin. It carries no page text — see `DOMScripts.outline` — so it is
+    /// safe to attach to an issue, which is the whole point of it.
+    private func saveOutline(_ outline: String, runID: UUID) throws -> String {
+        let directory = library.root.appendingPathComponent(".invoices-retriever/diagnostics", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent("\(runID.uuidString).outline.txt")
+        try Data(outline.utf8).write(to: url, options: .atomic)
+        return url.path
+    }
+
     private func saveScreenshot(_ data: Data, runID: UUID) throws -> String {
         let directory = library.root.appendingPathComponent(".invoices-retriever/diagnostics", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -256,19 +270,62 @@ public actor CollectionService {
 
     /// UC-01 and UC-03. Runs with the window visible and does not collect
     /// anything, so the user can deal with 2FA once and get on with their day.
+    ///
+    /// Recorded as a run like any other. A sign-in is where a plugin most often
+    /// breaks — it is the part that touches a login form — and leaving it out
+    /// of the journal meant the one failure a user most needed to show someone
+    /// left no trace at all.
     public func authenticate(source: Source) async throws {
-        guard let manifest = await catalog.manifest(id: source.pluginID) else {
-            throw IRError.invalidPlugin("plugin '\(source.pluginID)' is not installed")
+        var run = Run(sourceID: source.id, trigger: .manual)
+        let store = self.store
+        let runID = run.id
+        logger.addSink { record in
+            guard record.runID == runID else { return }
+            Task { try? await store.appendLog(record) }
         }
-        let runner = PluginRunner(manifest: manifest, sessionFactory: sessionFactory,
-                                  vault: vault, logger: logger)
-        let outcome = await runner.run(source: source, mode: .authenticateOnly)
-        if let error = outcome.error { throw error }
+        try await store.upsert(run)
 
-        var updated = source
-        updated.lastRunStatus = nil
-        updated.lastErrorMessage = nil
-        try await store.upsert(updated)
+        do {
+            guard let manifest = await catalog.manifest(id: source.pluginID) else {
+                throw IRError.invalidPlugin("plugin '\(source.pluginID)' is not installed")
+            }
+            let runner = PluginRunner(manifest: manifest, sessionFactory: sessionFactory,
+                                      vault: vault, logger: logger)
+            let outcome = await runner.run(source: source, mode: .authenticateOnly, runID: run.id)
+
+            if let screenshot = outcome.screenshot {
+                run.screenshotPath = try? saveScreenshot(screenshot, runID: run.id)
+            }
+            if let outline = outcome.outline, !outline.isEmpty {
+                run.outlinePath = try? saveOutline(outline, runID: run.id)
+            }
+            run.finishedAt = Date()
+
+            if let error = outcome.error {
+                run.status = outcome.status
+                run.errorMessage = logger.redact(error.localizedDescription)
+                try? await store.upsert(run)
+                await updateSource(source, after: run)
+                throw error
+            }
+
+            run.status = .succeeded
+            try? await store.upsert(run)
+
+            var updated = source
+            updated.lastRunAt = run.finishedAt
+            updated.lastRunStatus = nil
+            updated.lastErrorMessage = nil
+            try await store.upsert(updated)
+        } catch {
+            if run.finishedAt == nil {
+                run.finishedAt = Date()
+                run.status = (error as? IRError)?.needsUserSignIn == true ? .needsSignIn : .failed
+                run.errorMessage = logger.redact(error.localizedDescription)
+                try? await store.upsert(run)
+            }
+            throw error
+        }
     }
 
     public func discoverOptions(source: Source) async throws -> [ExposedOption] {

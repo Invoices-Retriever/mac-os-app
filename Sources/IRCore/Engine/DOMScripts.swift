@@ -205,4 +205,52 @@ enum DOMScripts {
     static let pageText = "(function(){ return document.body ? document.body.innerText : ''; })()"
 
     static let readyState = "(function(){ return document.readyState; })()"
+
+    /// A structural sketch of the page: what a plugin author needs to write a
+    /// selector, and nothing else.
+    ///
+    /// Tags, ids, classes, data-* attributes, roles — the things selectors are
+    /// made of. Text is replaced by its length, so an invoice number, an
+    /// amount or a customer name cannot end up in a diagnostic the user might
+    /// paste into an issue. A screenshot shows what a page looked like; this
+    /// shows what it is made of, which is what actually fixes a broken plugin.
+    static let outline = """
+    (function(){
+      const interesting = (el) => {
+        const attrs = [];
+        if (el.id) attrs.push('#' + el.id);
+        for (const c of el.classList) {
+          // Generated class names change on every deploy and are noise here.
+          if (!/^(css|sc|jsx|emotion)-|^[a-z]{1,3}[0-9]{3,}$/.test(c)) attrs.push('.' + c);
+        }
+        for (const a of el.attributes) {
+          if (a.name.startsWith('data-') || a.name === 'role' || a.name === 'name'
+              || a.name === 'type' || a.name === 'aria-label') {
+            attrs.push('[' + a.name + '=' + JSON.stringify(a.value).slice(0, 40) + ']');
+          }
+        }
+        if (el.tagName === 'A' && el.href) attrs.push('[href~' + (el.href.split('?')[0].split('/').slice(0,4).join('/')) + ']');
+        return attrs.join('');
+      };
+      const lines = [];
+      const walk = (el, depth) => {
+        if (lines.length > 700 || depth > 14) return;
+        const own = Array.from(el.childNodes)
+          .filter(n => n.nodeType === 3)
+          .map(n => n.textContent.trim()).join(' ').trim();
+        // Length only: never the text itself.
+        const text = own ? '  «' + own.length + ' chars»' : '';
+        lines.push('  '.repeat(depth) + el.tagName.toLowerCase() + interesting(el) + text);
+        for (const child of el.children) walk(child, depth + 1);
+      };
+      if (document.body) walk(document.body, 0);
+      return lines.join('\\n');
+    })()
+    """
+}
+
+
+/// The outline script, exposed to browser drivers outside this module.
+public enum DOMOutlineScript {
+    public static var source: String { DOMScripts.outline }
 }

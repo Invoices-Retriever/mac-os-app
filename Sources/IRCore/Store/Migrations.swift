@@ -152,6 +152,9 @@ public enum Migrations {
                     COALESCE(new.notes,''), COALESCE(new.extracted_text,''));
         END;
         """),
+        Migration(version: 3, name: "page outline captured on failure", sql: """
+        ALTER TABLE run ADD COLUMN outline_path TEXT;
+        """),
     ]
 
     public static func migrate(_ database: Database) async throws {

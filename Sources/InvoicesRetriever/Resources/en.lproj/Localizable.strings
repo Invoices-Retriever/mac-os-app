@@ -132,6 +132,7 @@
 "One row per document, for reconciliation in a spreadsheet. Amounts use a dot decimal so any tool reads them." = "One row per document, for reconciliation in a spreadsheet. Amounts use a dot decimal so any tool reads them.";
 "Only when I ask" = "Only when I ask";
 "Open the failure screenshot" = "Open the failure screenshot";
+"Open the page structure" = "Open the page structure";
 "Open the portal and sign in now" = "Open the portal and sign in now";
 "Opening %@…" = "Opening %@…";
 "Opening your library…" = "Opening your library…";
@@ -214,6 +215,7 @@
 "Uses Apple's Vision framework. Nothing is sent anywhere." = "Uses Apple's Vision framework. Nothing is sent anywhere.";
 "Webhook" = "Webhook";
 "What leaves this Mac" = "What leaves this Mac";
+"What the page was made of when it failed: tags, ids and classes, no text. This is what a selector is written against, and it is safe to attach to an issue." = "What the page was made of when it failed: tags, ids and classes, no text. This is what a selector is written against, and it is safe to attach to an issue.";
 "What this plugin can do" = "What this plugin can do";
 "You will be asked to sign in by hand on every run." = "You will be asked to sign in by hand on every run.";
 "You will sign in by hand in a browser window every time this source runs." = "You will sign in by hand in a browser window every time this source runs.";

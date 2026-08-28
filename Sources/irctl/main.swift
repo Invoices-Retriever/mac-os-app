@@ -200,7 +200,7 @@ struct IRCTL {
 
         let observer: (any StepObserver)? = options.flag("step") ? ConsoleStepObserver() : nil
         let executor = StepExecutor(session: session, context: context, policy: policy,
-                                    deadline: Date().addingTimeInterval(600), observer: observer)
+                                    deadline: Deadline(600), observer: observer)
 
         let section = options.value("section") ?? "getDocuments"
         print("→ \(manifest.name) \(manifest.version), section '\(section)'")
@@ -261,6 +261,13 @@ struct IRCTL {
                 let url = URL(fileURLWithPath: "./irctl-failure.png")
                 try? screenshot.write(to: url)
                 print("→ screenshot of the failure: \(url.path)")
+            }
+            // The structure of the page, which is what a selector is written
+            // against. No page text in it, so it is safe to paste into an issue.
+            if let outline = try? await session.captureDOMOutline(), !outline.isEmpty {
+                let url = URL(fileURLWithPath: "./irctl-failure.outline.txt")
+                try? Data(outline.utf8).write(to: url)
+                print("→ page structure: \(url.path)")
             }
             await session.close()
             throw error

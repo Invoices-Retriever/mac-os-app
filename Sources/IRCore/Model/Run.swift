@@ -13,6 +13,9 @@ public struct Run: Codable, Sendable, Identifiable, Hashable {
     /// Path to the failure screenshot (F2.8). Stored locally, never uploaded,
     /// never attached to an anomaly report without the user saying so.
     public var screenshotPath: String?
+    /// Path to the page outline captured at the moment of failure. Structure
+    /// only, no text — safe to attach to a bug report.
+    public var outlinePath: String?
     public var attempt: Int
     public var trigger: RunTrigger
 

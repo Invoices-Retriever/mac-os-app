@@ -61,10 +61,18 @@ struct RunsView: View {
                     .textSelection(.enabled)
             }
 
-            if let path = run.screenshotPath {
+            if run.screenshotPath != nil || run.outlinePath != nil {
                 HStack {
-                    Button(t("Open the failure screenshot")) {
-                        NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                    if let path = run.screenshotPath {
+                        Button(t("Open the failure screenshot")) {
+                            NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                        }
+                    }
+                    if let path = run.outlinePath {
+                        Button(t("Open the page structure")) {
+                            NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                        }
+                        .help(t("What the page was made of when it failed: tags, ids and classes, no text. This is what a selector is written against, and it is safe to attach to an issue."))
                     }
                     Text(t("Stored on this Mac. Nothing uploads it."))
                         .font(.caption).foregroundStyle(.secondary)

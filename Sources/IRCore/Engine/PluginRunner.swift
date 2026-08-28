@@ -34,6 +34,9 @@ public struct PluginRunner: Sendable {
         public var exposedOptions: [ExposedOption]
         public var error: (any Error)?
         public var screenshot: Data?
+        /// What the page was made of when it failed. A screenshot shows what it
+        /// looked like; this is what a selector is written against.
+        public var outline: String?
     }
 
     public enum Mode: Sendable {
@@ -57,7 +60,11 @@ public struct PluginRunner: Sendable {
                                                        current: PluginManifest.engineVersion.description))
         }
 
-        let deadline = Date().addingTimeInterval(runBudget.seconds)
+        // The budget covers what the engine does, not what the person does.
+        // A sign-in that waits for someone to fetch their phone must not eat
+        // the time getDocuments will need afterwards, so the deadline is a
+        // reference the interactive wait pushes forward.
+        let deadline = Deadline(runBudget.seconds)
         var session: (any BrowserSession)?
 
         do {
@@ -123,6 +130,7 @@ public struct PluginRunner: Sendable {
             // useful thing for fixing a broken plugin. It stays on this
             // machine; nothing uploads it, ever.
             let screenshot = try? await session?.captureScreenshot()
+            let outline = try? await session?.captureDOMOutline()
             let status: RunStatus
             if let irError = error as? IRError, irError.needsUserSignIn {
                 status = .needsSignIn
@@ -133,7 +141,7 @@ public struct PluginRunner: Sendable {
             }
             logger.error("run failed: \(error.localizedDescription)", source: source.id, run: runID)
             return Outcome(status: status, documents: [], exposedOptions: [],
-                           error: error, screenshot: screenshot)
+                           error: error, screenshot: screenshot, outline: outline)
         }
     }
 
@@ -153,7 +161,7 @@ public struct PluginRunner: Sendable {
                         context: ExecutionContext,
                         source: Source,
                         runID: UUID,
-                        deadline: Date) async throws {
+                        deadline: Deadline) async throws {
 
         await session.setVisible(true)
 
@@ -173,10 +181,14 @@ public struct PluginRunner: Sendable {
         if await isSignedIn(executor: executor, session: session) { return }
 
         logger.info("waiting for you to finish signing in", source: source.id, run: runID)
-        let signInDeadline = min(Date().addingTimeInterval(interactiveSignInBudget.seconds), deadline)
+        let startedWaiting = Date()
+        let signInDeadline = Date().addingTimeInterval(interactiveSignInBudget.seconds)
         let succeeded = await session.waitForUserSignIn(until: signInDeadline) {
             await isSignedIn(executor: executor, session: session)
         }
+        // Give back every second the person took. Otherwise a slow two-factor
+        // code leaves no budget for the collection it was meant to unlock.
+        await deadline.extend(by: Date().timeIntervalSince(startedWaiting))
 
         guard succeeded else {
             throw IRError.authenticationFailed(

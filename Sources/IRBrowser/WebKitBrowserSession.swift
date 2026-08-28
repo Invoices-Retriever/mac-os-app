@@ -251,6 +251,11 @@ public final class WebKitBrowserSession: NSObject, BrowserSession {
         return png
     }
 
+    public func captureDOMOutline() async throws -> String {
+        let value = try await evaluate(DOMScriptsBridge.outline)
+        return value.stringValue ?? ""
+    }
+
     public func drainNetworkResponses() async -> [ObservedResponse] {
         let responses = observedResponses
         observedResponses.removeAll()
@@ -555,4 +560,5 @@ private final class DownloadCoordinator {
 
 enum DOMScriptsBridge {
     static let readyState = "(function(){ return document.readyState; })()"
+    static let outline = DOMOutlineScript.source
 }

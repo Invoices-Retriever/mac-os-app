@@ -127,21 +127,24 @@ public struct Store: Sendable {
     public func upsert(_ run: Run) async throws {
         try await database.run("""
             INSERT INTO run (id, source_id, started_at, finished_at, status, documents_found,
-                             documents_new, error_message, screenshot_path, attempt, trigger)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             documents_new, error_message, screenshot_path, attempt, trigger,
+                             outline_path)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 finished_at = excluded.finished_at,
                 status = excluded.status,
                 documents_found = excluded.documents_found,
                 documents_new = excluded.documents_new,
                 error_message = excluded.error_message,
-                screenshot_path = excluded.screenshot_path
+                screenshot_path = excluded.screenshot_path,
+                outline_path = excluded.outline_path
             """, [
                 SQLValue(run.id), SQLValue(run.sourceID), SQLValue(run.startedAt),
                 SQLValue(run.finishedAt), .text(run.status.rawValue),
                 .integer(run.documentsFound), .integer(run.documentsNew),
                 SQLValue(run.errorMessage), SQLValue(run.screenshotPath),
                 .integer(run.attempt), .text(run.trigger.rawValue),
+                SQLValue(run.outlinePath),
             ])
     }
 
@@ -166,6 +169,7 @@ public struct Store: Sendable {
         run.documentsNew = row.int("documents_new") ?? 0
         run.errorMessage = row.string("error_message")
         run.screenshotPath = row.string("screenshot_path")
+        run.outlinePath = row.string("outline_path")
         return run
     }
 

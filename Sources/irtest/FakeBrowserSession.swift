@@ -127,6 +127,12 @@ final class FakeBrowserSession: BrowserSession, @unchecked Sendable {
     func printToPDF() async throws -> Data { Data("%PDF-1.4 printed".utf8) }
     func captureScreenshot() async throws -> Data { Data("PNG".utf8) }
 
+    func captureDOMOutline() async throws -> String {
+        let page = self.page
+        let names = Set(page.elements.keys).union(page.attributes.keys).sorted()
+        return names.map { "element " + $0 }.joined(separator: "\n")
+    }
+
     func drainNetworkResponses() async -> [ObservedResponse] {
         let out = responses
         responses.removeAll()
