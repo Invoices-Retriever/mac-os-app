@@ -131,13 +131,13 @@ struct LibraryView: View {
 
     private var table: some View {
         Table(model.documents, selection: $selection) {
-            TableColumn("Date") { document in
+            TableColumn(t("Date")) { document in
                 Text(document.issuedOn.map { $0.formatted(date: .numeric, time: .omitted) } ?? "—")
                     .foregroundStyle(document.issuedOn == nil ? .secondary : .primary)
             }
             .width(90)
 
-            TableColumn("Issuer") { document in
+            TableColumn(t("Issuer")) { document in
                 HStack(spacing: 5) {
                     Text(document.issuer ?? "—")
                     if document.needsReview {
@@ -153,16 +153,16 @@ struct LibraryView: View {
                 }
             }
 
-            TableColumn("Number") { Text($0.number ?? "—") }
+            TableColumn(t("Number")) { Text($0.number ?? "—") }
 
-            TableColumn("Total") { document in
+            TableColumn(t("Total")) { document in
                 Text(document.total?.formatted() ?? "—")
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .width(110)
 
-            TableColumn("Kind") { Text($0.kind.displayName).foregroundStyle(.secondary) }
+            TableColumn(t("Kind")) { Text($0.kind.displayName).foregroundStyle(.secondary) }
                 .width(90)
         }
         .tableStyle(.inset)
@@ -195,7 +195,7 @@ struct LibraryView: View {
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.allowedContentTypes = [.pdf]
-        panel.message = "Choose PDFs to add to your library."
+        panel.message = t("Choose PDFs to add to your library.")
         guard panel.runModal() == .OK else { return }
         Task { await model.importFiles(panel.urls) }
     }

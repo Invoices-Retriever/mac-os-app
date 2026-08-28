@@ -99,7 +99,7 @@ struct DeveloperView: View {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
-        panel.message = "Choose the folder containing the plugin JSON files you are editing."
+        panel.message = t("Choose the folder containing the plugin JSON files you are editing.")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task {
             await model.addDeveloperFolder(url)
@@ -121,7 +121,7 @@ struct DeveloperView: View {
                     if file.lastPathComponent != "\(manifest.id).json" {
                         report.issues.insert(.init(severity: .error, path: "filename",
                                                    message: "should be named \(manifest.id).json",
-                                                   hint: "The CI checks this so reviewers can find a plugin by its id."),
+                                                   hint: t("The CI checks this so reviewers can find a plugin by its id.")),
                                              at: 0)
                     }
                     found.append((file.lastPathComponent, report))

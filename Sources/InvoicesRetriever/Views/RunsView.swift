@@ -38,7 +38,7 @@ struct RunsView: View {
     private func detail(_ run: Run) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(model.sourceNames[run.sourceID] ?? "Removed source").font(.headline)
+                Text(model.sourceNames[run.sourceID] ?? t("Removed source")).font(.headline)
                 Spacer()
                 Text(run.status.displayName)
                     .font(.callout)

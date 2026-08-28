@@ -118,8 +118,8 @@ struct SettingsView: View {
 
             Section(t("Keychain")) {
                 Label(Keychain.biometricsAvailable()
-                      ? "Touch ID is available on this Mac and can be required per source."
-                      : "Touch ID is not available; credentials are protected by your login password.",
+                      ? t("Touch ID is available on this Mac and can be required per source.")
+                      : t("Touch ID is not available; credentials are protected by your login password."),
                       systemImage: "touchid")
                     .font(.callout)
             }
@@ -131,7 +131,7 @@ struct SettingsView: View {
     private func preview(_ pattern: String) -> String {
         var document = InvoiceDocument(entityID: UUID(), sha256: "", relativePath: "", byteSize: 0)
         document.issuedOn = InvoiceDateParser.parse("2026-03-31")
-        document.issuer = "OVHcloud"
+        document.issuer = "OVHcloud"   // not prose: sample data for the preview
         document.number = "FR-12345"
         document.total = Money(cents: 123456, currency: "EUR")
         return NamingTemplate(pattern: pattern).render(document: document, sourceName: "OVH")
@@ -142,7 +142,7 @@ struct SettingsView: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
-        panel.message = "Choose where your documents are stored."
+        panel.message = t("Choose where your documents are stored.")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         draft.libraryPath = url.path
     }

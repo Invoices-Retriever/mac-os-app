@@ -121,6 +121,14 @@ Do not reach for `Text("…")` with a literal: SwiftUI would resolve it against
 `Bundle.main`, which is not where the catalogues live, and it would silently
 work in English only.
 
+`Scripts/check-localization.py`, which CI runs, flags prose in the view layer
+that does not go through `t()`. It exists because the catalogue-parity tests
+cannot see this class of mistake — a string that never becomes a key is a string
+the catalogue never hears about — and three shipped before it: a label behind an
+argument label (`Badge(text:)`), a ternary inside `Button()`, and a subtitle
+built by concatenation. If it flags something that genuinely is not prose, put
+`// not prose` on the line with a word about why.
+
 ## Style
 
 Match the surrounding code. A few things that are not obvious from reading it:

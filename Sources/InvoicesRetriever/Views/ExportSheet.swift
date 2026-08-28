@@ -51,9 +51,9 @@ struct ExportSheet: View {
 
                 switch destination {
                 case .folder, .csv, .json:
-                    Section(destination == .folder ? "Destination folder" : "Destination file") {
+                    Section(destination == .folder ? t("Destination folder") : t("Destination file")) {
                         HStack {
-                            Text(folderURL?.path ?? "Not chosen")
+                            Text(folderURL?.path ?? t("Not chosen"))
                                 .lineLimit(1).truncationMode(.middle)
                                 .foregroundStyle(folderURL == nil ? .secondary : .primary)
                             Spacer()
@@ -73,8 +73,8 @@ struct ExportSheet: View {
                 Section {
                     Toggle(t("Send documents that were already exported here"), isOn: $resend)
                     Text(resend
-                         ? "Every one of the \(documents.count) selected documents will be sent."
-                         : "Documents already sent to this destination will be skipped.")
+                         ? tn("Every one of the %d selected documents will be sent.", documents.count)
+                         : t("Documents already sent to this destination will be skipped."))
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -115,12 +115,12 @@ struct ExportSheet: View {
             panel.canChooseDirectories = true
             panel.canChooseFiles = false
             panel.canCreateDirectories = true
-            panel.message = "Choose where to copy the PDFs."
+            panel.message = t("Choose where to copy the PDFs.")
             if panel.runModal() == .OK { folderURL = panel.url }
         } else {
             let panel = NSSavePanel()
             panel.nameFieldStringValue = destination == .csv ? "register.csv" : "register.json"
-            panel.message = "Choose where to write the register."
+            panel.message = t("Choose where to write the register.")
             if panel.runModal() == .OK { folderURL = panel.url }
         }
     }

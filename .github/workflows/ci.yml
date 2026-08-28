@@ -109,6 +109,9 @@ jobs:
           fi
           echo "✓ no @testable"
 
+      - name: Every user-facing string goes through t()
+        run: python3 Scripts/check-localization.py
+
       - name: No third-party dependencies
         run: |
           if grep -q "dependencies: \[$" Package.swift && grep -q "\.package(" Package.swift; then

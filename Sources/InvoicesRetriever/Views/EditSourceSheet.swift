@@ -142,7 +142,7 @@ struct EditSourceSheet: View {
             SecureField(field.label, text: Binding(
                 get: { newSecrets[key] ?? "" },
                 set: { newSecrets[key] = $0 }))
-                .help(field.help ?? "Stored in your keychain, never in the database.")
+                .help(field.help ?? t("Stored in your keychain, never in the database."))
         } else {
             TextField(field.label, text: Binding(
                 get: { draft.config[key] ?? "" },

@@ -17,12 +17,12 @@ struct DocumentDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
                 header
 
-                GroupBox("Details") {
+                GroupBox(t("Details")) {
                     VStack(spacing: 8) {
-                        field("Issuer", key: "issuer")
-                        field("Number", key: "number")
-                        field("Date", key: "issuedOn", hint: "YYYY-MM-DD")
-                        field("Total", key: "total", hint: "1234.56")
+                        field(t("Issuer"), key: "issuer")
+                        field(t("Number"), key: "number")
+                        field(t("Date"), key: "issuedOn", hint: "YYYY-MM-DD")
+                        field(t("Total"), key: "total", hint: "1234.56")
                         field("VAT", key: "vat")
                         field("VAT number", key: "vatNumber")
                     }
@@ -42,7 +42,7 @@ struct DocumentDetailView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(fields.isEmpty)
 
-                GroupBox("File") {
+                GroupBox(t("File")) {
                     VStack(alignment: .leading, spacing: 6) {
                         LabeledContent(t("Path"), value: document.relativePath)
                             .textSelection(.enabled)
@@ -71,7 +71,7 @@ struct DocumentDetailView: View {
         }
         .onAppear(perform: loadFields)
         .onChange(of: document.id) { _, _ in loadFields() }
-        .confirmationDialog("Delete this document?", isPresented: $isDeleting) {
+        .confirmationDialog(t("Delete this document?"), isPresented: $isDeleting) {
             Button(t("Move the file to the Trash and forget it"), role: .destructive) {
                 Task { await model.delete(document, removeFile: true) }
             }
@@ -87,7 +87,7 @@ struct DocumentDetailView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(document.issuer ?? "Unknown issuer").font(.title2.weight(.semibold))
+            Text(document.issuer ?? t("Unknown issuer")).font(.title2.weight(.semibold))
             HStack(spacing: 8) {
                 Text(document.kind.displayName)
                 if document.verifiedByHuman {

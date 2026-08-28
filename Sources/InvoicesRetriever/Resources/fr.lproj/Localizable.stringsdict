@@ -291,5 +291,21 @@
 			<string>%d retirés</string>
 		</dict>
 	</dict>
+	<key>Every one of the %d selected documents will be sent.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>Le %d document sélectionné sera envoyé.</string>
+			<key>other</key>
+			<string>Les %d documents sélectionnés seront envoyés.</string>
+		</dict>
+	</dict>
 </dict>
 </plist>

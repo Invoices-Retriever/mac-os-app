@@ -99,7 +99,7 @@ struct AddSourceSheet: View {
         .onAppear(perform: applyDeclaredDefaults)
         .overlay {
             if isWorking {
-                ProgressView("Opening \(manifest.name)…")
+                ProgressView(t("Opening %@…", manifest.name))
                     .padding(30)
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
             }

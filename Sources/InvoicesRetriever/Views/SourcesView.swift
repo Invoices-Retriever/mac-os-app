@@ -41,7 +41,7 @@ struct SourcesView: View {
                 .environment(model)
         }
         .confirmationDialog(
-            "Remove “\(deleting?.displayName ?? "")”?",
+            t("Remove “%@”?", deleting?.displayName ?? ""),
             isPresented: Binding(get: { deleting != nil },
                                  set: { if !$0 { deleting = nil } }),
             presenting: deleting
@@ -134,9 +134,9 @@ private struct SourceRow: View {
     private var subtitle: String {
         var parts: [String] = [source.pluginID]
         if let last = source.lastRunAt {
-            parts.append("last run " + last.formatted(.relative(presentation: .named)))
+            parts.append(t("last run %@", last.formatted(.relative(presentation: .named))))
         } else {
-            parts.append("never run")
+            parts.append(t("never run"))
         }
         parts.append(source.schedule.displayName.lowercased())
         return parts.joined(separator: " · ")
