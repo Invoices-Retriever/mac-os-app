@@ -104,6 +104,23 @@ not the fix. Tests that pin down security behaviour should read as statements
 about the guarantee ("the engine refuses a navigation outside the sandbox even
 if the URL is built at run time") rather than about the implementation.
 
+## Adding or changing a user-facing string
+
+Every string goes through `t("…")`, `tn("…", count)` for counted ones, or
+`core("…")` in `IRCore`. The key is the English text, so an unbundled build
+reads correctly with no catalogue loaded.
+
+After changing one, add it to both `en.lproj/Localizable.strings` and
+`fr.lproj/Localizable.strings` (and the `.stringsdict` if it is counted). The
+test suite compares the catalogues against the strings the code actually asks
+for and fails on a key that is missing, orphaned, untranslated, or that lost a
+`%@` on the way into French — so `swift run irtest` will tell you what you
+forgot.
+
+Do not reach for `Text("…")` with a literal: SwiftUI would resolve it against
+`Bundle.main`, which is not where the catalogues live, and it would silently
+work in English only.
+
 ## Style
 
 Match the surrounding code. A few things that are not obvious from reading it:

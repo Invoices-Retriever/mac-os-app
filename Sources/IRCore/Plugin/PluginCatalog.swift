@@ -36,16 +36,16 @@ public actor PluginCatalog {
         public var warnings: [String] {
             var out: [String] = []
             if provenance == .sideloaded || provenance == .local {
-                out.append("This plugin did not come from the official index. It has not been reviewed by the project.")
+                out.append(core("This plugin did not come from the official index. It has not been reviewed by the project."))
             }
             if manifest.containsArbitraryJavaScript {
-                out.append("It runs its own JavaScript inside the supplier's pages.")
+                out.append(core("It runs its own JavaScript inside the supplier's pages."))
             }
             if manifest.effectiveStatus == .degraded {
-                out.append("It is currently reported as failing for several people.")
+                out.append(core("It is currently reported as failing for several people."))
             }
             if manifest.effectiveStatus == .archived {
-                out.append("It is archived: unmaintained and broken for more than 90 days.")
+                out.append(core("It is archived: unmaintained and broken for more than 90 days."))
             }
             return out
         }
@@ -55,7 +55,7 @@ public actor PluginCatalog {
         /// non-technical user can actually weigh.
         public var capabilitySummary: String {
             let domains = manifest.allowedDomains.joined(separator: ", ")
-            return "It can open pages, type your credentials and download files on: \(domains). It cannot reach anywhere else."
+            return core("It can open pages, type your credentials and download files on: %@. It cannot reach anywhere else.", domains)
         }
     }
 

@@ -33,13 +33,13 @@ struct AddSourceSheet: View {
         VStack(spacing: 0) {
             Form {
                 Section {
-                    TextField("Name this source", text: $displayName,
+                    TextField(t("Name this source"), text: $displayName,
                               prompt: Text(manifest.name))
-                    Text("Give it a name you will recognise — “OVH — main account” — especially if you have several accounts with the same supplier.")
+                    Text(t("Give it a name you will recognise — “OVH — main account” — especially if you have several accounts with the same supplier."))
                         .font(.caption).foregroundStyle(.secondary)
                 }
 
-                Section("What this plugin can do") {
+                Section(t("What this plugin can do")) {
                     Label(entry.capabilitySummary, systemImage: "network.badge.shield.half.filled")
                         .font(.callout)
                     ForEach(entry.warnings, id: \.self) { warning in
@@ -57,22 +57,22 @@ struct AddSourceSheet: View {
                     }
                 }
 
-                Section("Credentials") {
-                    Toggle("Remember them in my keychain", isOn: $rememberCredentials)
+                Section(t("Credentials")) {
+                    Toggle(t("Remember them in my keychain"), isOn: $rememberCredentials)
                     if rememberCredentials {
-                        Toggle("Require Touch ID each time they are used", isOn: $requireBiometrics)
+                        Toggle(t("Require Touch ID each time they are used"), isOn: $requireBiometrics)
                             .disabled(!Keychain.biometricsAvailable())
-                        Text("Credentials go to the macOS keychain, on this Mac only. They are never written to the database, the logs or a screenshot.")
+                        Text(t("Credentials go to the macOS keychain, on this Mac only. They are never written to the database, the logs or a screenshot."))
                             .font(.caption).foregroundStyle(.secondary)
                     } else {
-                        Text("You will sign in by hand in a browser window every time this source runs.")
+                        Text(t("You will sign in by hand in a browser window every time this source runs."))
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
 
                 Section {
-                    Toggle("Open the portal and sign in now", isOn: $signInNow)
-                    Text("Signing in once stores the session, so later collections do not need your two-factor code again.")
+                    Toggle(t("Open the portal and sign in now"), isOn: $signInNow)
+                    Text(t("Signing in once stores the session, so later collections do not need your two-factor code again."))
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -81,11 +81,11 @@ struct AddSourceSheet: View {
             Divider()
             HStack {
                 if !missingRequired.isEmpty {
-                    Text("Still needed: \(missingRequired.joined(separator: ", "))")
+                    Text(t("Still needed: %@", missingRequired.joined(separator: ", ")))
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Cancel") { dismiss() }
+                Button(t("Cancel")) { dismiss() }
                 Button(signInNow ? "Add and sign in" : "Add") { add() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(!missingRequired.isEmpty || isWorking)
@@ -110,7 +110,7 @@ struct AddSourceSheet: View {
         case .totp:
             VStack(alignment: .leading, spacing: 2) {
                 SecureField(field.label, text: secretBinding(key))
-                Text("Paste the secret shown when you set up two-factor authentication, or the whole otpauth:// link.")
+                Text(t("Paste the secret shown when you set up two-factor authentication, or the whole otpauth:// link."))
                     .font(.caption2).foregroundStyle(.secondary)
             }
         case .boolean:
@@ -119,7 +119,7 @@ struct AddSourceSheet: View {
                 set: { config[key] = $0 ? "true" : "false" }))
         case .select:
             Picker(field.label, selection: configBinding(key)) {
-                Text("—").tag("")
+                Text(verbatim: "—").tag("")
                 ForEach(field.options ?? [], id: \.value) { Text($0.label).tag($0.value) }
             }
         default:

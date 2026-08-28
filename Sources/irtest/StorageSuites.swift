@@ -162,6 +162,31 @@ func runStorageSuites() async {
             expect(loaded.enableLLMFallback)
         }
 
+        await test("A record missing keys keeps its known settings") {
+            let (store, directory) = try await makeTemporaryStore()
+            defer { try? FileManager.default.removeItem(at: directory) }
+
+            // What a record written by an older version looks like: it knows
+            // nothing of the settings added since. Losing the two it does carry
+            // would be the user losing their configuration on upgrade.
+            try await store.setSetting(Preferences.settingKey,
+                #"{"maximumConcurrency":5,"interfaceLanguage":"fr"}"#)
+
+            let loaded = await Preferences.load(from: store)
+            expectEqual(loaded.maximumConcurrency, 5)
+            expectEqual(loaded.interfaceLanguage, "fr")
+            expectEqual(loaded.fileNamePattern, Preferences.default.fileNamePattern)
+            expect(!loaded.enableLLMFallback, "an absent key must never turn the model on")
+        }
+
+        await test("An unreadable record falls back rather than crashing") {
+            let (store, directory) = try await makeTemporaryStore()
+            defer { try? FileManager.default.removeItem(at: directory) }
+            try await store.setSetting(Preferences.settingKey, "this is not JSON")
+            let loaded = await Preferences.load(from: store)
+            expectEqual(loaded.maximumConcurrency, Preferences.default.maximumConcurrency)
+        }
+
         await test("The LLM fallback is off in the shipped defaults") {
             expect(!Preferences.default.enableLLMFallback)
             expect(!Preferences.default.schedulerEnabled)

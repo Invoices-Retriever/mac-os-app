@@ -112,9 +112,9 @@ public enum PluginStatus: String, Codable, Sendable, Hashable, CaseIterable {
 
     public var displayName: String {
         switch self {
-        case .active: return "Working"
-        case .degraded: return "Degraded"
-        case .archived: return "Archived"
+        case .active: return core("Working")
+        case .degraded: return core("Degraded")
+        case .archived: return core("Archived")
         }
     }
 }

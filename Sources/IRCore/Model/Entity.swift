@@ -17,5 +17,5 @@ public struct Entity: Codable, Sendable, Identifiable, Hashable {
         self.id = id; self.name = name; self.vatNumber = vatNumber; self.createdAt = createdAt
     }
 
-    public static let defaultName = "My business"
+    public static var defaultName: String { core("My business") }
 }

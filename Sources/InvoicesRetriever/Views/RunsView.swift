@@ -23,14 +23,14 @@ struct RunsView: View {
                 } else if !model.liveLog.isEmpty {
                     liveLog
                 } else {
-                    Text("Select a run to read its log")
+                    Text(t("Select a run to read its log"))
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .frame(minWidth: 420)
         }
-        .navigationTitle("Runs")
+        .navigationTitle(t("Runs"))
         .onChange(of: selection) { _, _ in loadLogs() }
     }
 
@@ -45,12 +45,12 @@ struct RunsView: View {
                     .foregroundStyle(run.status.countsAsSuccess ? .green : .orange)
             }
             HStack(spacing: 14) {
-                Label("\(run.documentsNew) new", systemImage: "doc.badge.plus")
-                Label("\(run.documentsFound) seen", systemImage: "doc")
+                Label(tn("%d new", run.documentsNew), systemImage: "doc.badge.plus")
+                Label(tn("%d seen", run.documentsFound), systemImage: "doc")
                 if let duration = run.duration {
                     Label(String(format: "%.1f s", duration), systemImage: "clock")
                 }
-                if run.attempt > 1 { Label("attempt \(run.attempt)", systemImage: "arrow.clockwise") }
+                if run.attempt > 1 { Label(t("attempt %@", number(run.attempt)), systemImage: "arrow.clockwise") }
             }
             .font(.callout).foregroundStyle(.secondary)
 
@@ -63,10 +63,10 @@ struct RunsView: View {
 
             if let path = run.screenshotPath {
                 HStack {
-                    Button("Open the failure screenshot") {
+                    Button(t("Open the failure screenshot")) {
                         NSWorkspace.shared.open(URL(fileURLWithPath: path))
                     }
-                    Text("Stored on this Mac. Nothing uploads it.")
+                    Text(t("Stored on this Mac. Nothing uploads it."))
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -79,7 +79,7 @@ struct RunsView: View {
 
     private var liveLog: some View {
         VStack(alignment: .leading) {
-            Text("Live").font(.headline)
+            Text(t("Live")).font(.headline)
             logTable(model.liveLog)
         }
         .padding()
@@ -137,7 +137,7 @@ private struct RunRow: View {
             }
             Spacer()
             if run.documentsNew > 0 {
-                Text("+\(run.documentsNew)").font(.caption.monospacedDigit()).foregroundStyle(.green)
+                Text(verbatim: "+\(number(run.documentsNew))").font(.caption.monospacedDigit()).foregroundStyle(.green)
             }
         }
         .padding(.vertical, 2)

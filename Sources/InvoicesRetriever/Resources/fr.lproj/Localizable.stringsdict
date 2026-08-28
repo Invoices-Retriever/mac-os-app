@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Chaînes comptées, français. Le CLDR range 0 ET 1 dans la catégorie « one » en français : « 0 document », pas « 0 documents ». C'est précisément la raison d'être de ce fichier plutôt que d'un « document(s) » partout. -->
+<plist version="1.0">
+<dict>
+	<key>%d documents</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d document</string>
+			<key>other</key>
+			<string>%d documents</string>
+		</dict>
+	</dict>
+	<key>%d documents in the current view</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d document dans la vue actuelle</string>
+			<key>other</key>
+			<string>%d documents dans la vue actuelle</string>
+		</dict>
+	</dict>
+	<key>%d documents exported</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d document exporté</string>
+			<key>other</key>
+			<string>%d documents exportés</string>
+		</dict>
+	</dict>
+	<key>%d already sent</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d déjà envoyé</string>
+			<key>other</key>
+			<string>%d déjà envoyés</string>
+		</dict>
+	</dict>
+	<key>%d failed</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d en échec</string>
+			<key>other</key>
+			<string>%d en échec</string>
+		</dict>
+	</dict>
+	<key>%d new documents</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d nouveau document</string>
+			<key>other</key>
+			<string>%d nouveaux documents</string>
+		</dict>
+	</dict>
+	<key>%d sources failed</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d source en échec</string>
+			<key>other</key>
+			<string>%d sources en échec</string>
+		</dict>
+	</dict>
+	<key>%d need you to sign in</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d demande une reconnexion</string>
+			<key>other</key>
+			<string>%d demandent une reconnexion</string>
+		</dict>
+	</dict>
+	<key>%d indexed documents are missing from disk.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d document indexé est absent du disque.</string>
+			<key>other</key>
+			<string>%d documents indexés sont absents du disque.</string>
+		</dict>
+	</dict>
+	<key>%d stored credentials were deleted from the keychain.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d identifiant enregistré a été supprimé du trousseau.</string>
+			<key>other</key>
+			<string>%d identifiants enregistrés ont été supprimés du trousseau.</string>
+		</dict>
+	</dict>
+	<key>%d plugins</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d plugin</string>
+			<key>other</key>
+			<string>%d plugins</string>
+		</dict>
+	</dict>
+	<key>%d new</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d nouveau</string>
+			<key>other</key>
+			<string>%d nouveaux</string>
+		</dict>
+	</dict>
+	<key>%d seen</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d vu</string>
+			<key>other</key>
+			<string>%d vus</string>
+		</dict>
+	</dict>
+	<key>Collect from %d sources at a time</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>Collecter %d source à la fois</string>
+			<key>other</key>
+			<string>Collecter %d sources à la fois</string>
+		</dict>
+	</dict>
+	<key>Look back %d days on the first run</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>Remonter %d jour à la première exécution</string>
+			<key>other</key>
+			<string>Remonter %d jours à la première exécution</string>
+		</dict>
+	</dict>
+</dict>
+</plist>

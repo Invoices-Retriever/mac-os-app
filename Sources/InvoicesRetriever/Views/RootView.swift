@@ -11,11 +11,11 @@ struct RootView: View {
 
         var title: String {
             switch self {
-            case .sources: return "Sources"
-            case .library: return "Library"
-            case .catalog: return "Catalogue"
-            case .runs: return "Runs"
-            case .developer: return "Plugin developer"
+            case .sources: return t("Sources")
+            case .library: return t("Library")
+            case .catalog: return t("Catalogue")
+            case .runs: return t("Runs")
+            case .developer: return t("Plugin developer")
             }
         }
 
@@ -56,7 +56,7 @@ struct RootView: View {
         }
         .overlay {
             if model.isLoading {
-                ProgressView("Opening your library…")
+                ProgressView(t("Opening your library…"))
                     .padding(40)
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
             }

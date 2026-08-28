@@ -22,6 +22,13 @@
     <true/>
     <key>NSHumanReadableCopyright</key>
     <string>AGPL-3.0-or-later. Source: https://github.com/Invoices-Retriever/mac-os-app</string>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>en</string>
+        <string>fr</string>
+    </array>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.finance</string>
     <!-- The app drives a browser it owns and writes only where the user points

@@ -81,10 +81,10 @@ public enum DocumentOrigin: String, Codable, Sendable, Hashable, CaseIterable {
 
     public var displayName: String {
         switch self {
-        case .portal: return "Portal"
-        case .email: return "E-mail"
-        case .manualImport: return "Imported"
-        case .folderScan: return "Found on disk"
+        case .portal: return core("Portal")
+        case .email: return core("E-mail")
+        case .manualImport: return core("Imported")
+        case .folderScan: return core("Found on disk")
         }
     }
 }

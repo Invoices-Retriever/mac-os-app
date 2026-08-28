@@ -48,9 +48,29 @@ public struct Preferences: Codable, Sendable, Hashable {
     public var enableOCR: Bool
     public var enableLLMFallback: Bool
     public var llmProvider: String?
+    /// nil follows the system. Kept as a string rather than the enum so an
+    /// unknown value from a newer build degrades to "follow the system"
+    /// instead of failing to decode the whole preferences record.
     public var interfaceLanguage: String?
     public var pluginIndexURL: String
     public var lastIndexRevision: Int
+
+    public init(libraryPath: String?, fileNamePattern: String, folderPattern: String,
+                maximumConcurrency: Int, schedulerEnabled: Bool, enableOCR: Bool,
+                enableLLMFallback: Bool, llmProvider: String?, interfaceLanguage: String?,
+                pluginIndexURL: String, lastIndexRevision: Int) {
+        self.libraryPath = libraryPath
+        self.fileNamePattern = fileNamePattern
+        self.folderPattern = folderPattern
+        self.maximumConcurrency = maximumConcurrency
+        self.schedulerEnabled = schedulerEnabled
+        self.enableOCR = enableOCR
+        self.enableLLMFallback = enableLLMFallback
+        self.llmProvider = llmProvider
+        self.interfaceLanguage = interfaceLanguage
+        self.pluginIndexURL = pluginIndexURL
+        self.lastIndexRevision = lastIndexRevision
+    }
 
     public static let `default` = Preferences(
         libraryPath: nil,
@@ -69,13 +89,53 @@ public struct Preferences: Codable, Sendable, Hashable {
 
     public static let settingKey = "preferences"
 
+    /// Decoding fills in anything the stored record does not carry.
+    ///
+    /// Without this, adding a preference in a later version would make every
+    /// existing record fail to decode, and the user would silently lose every
+    /// setting they had ever changed. Tolerating absent keys is what makes a
+    /// new field a non-event.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let fallback = Preferences.default
+
+        libraryPath = try c.decodeIfPresent(String.self, forKey: .libraryPath)
+        fileNamePattern = try c.decodeIfPresent(String.self, forKey: .fileNamePattern) ?? fallback.fileNamePattern
+        folderPattern = try c.decodeIfPresent(String.self, forKey: .folderPattern) ?? fallback.folderPattern
+        maximumConcurrency = try c.decodeIfPresent(Int.self, forKey: .maximumConcurrency) ?? fallback.maximumConcurrency
+        schedulerEnabled = try c.decodeIfPresent(Bool.self, forKey: .schedulerEnabled) ?? fallback.schedulerEnabled
+        enableOCR = try c.decodeIfPresent(Bool.self, forKey: .enableOCR) ?? fallback.enableOCR
+        // Note the fallback: a record that predates this setting must not turn
+        // the language-model fallback on by accident.
+        enableLLMFallback = try c.decodeIfPresent(Bool.self, forKey: .enableLLMFallback) ?? false
+        llmProvider = try c.decodeIfPresent(String.self, forKey: .llmProvider)
+        interfaceLanguage = try c.decodeIfPresent(String.self, forKey: .interfaceLanguage)
+        pluginIndexURL = try c.decodeIfPresent(String.self, forKey: .pluginIndexURL) ?? fallback.pluginIndexURL
+        lastIndexRevision = try c.decodeIfPresent(Int.self, forKey: .lastIndexRevision) ?? fallback.lastIndexRevision
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case libraryPath, fileNamePattern, folderPattern, maximumConcurrency
+        case schedulerEnabled, enableOCR, enableLLMFallback, llmProvider
+        case interfaceLanguage, pluginIndexURL, lastIndexRevision
+    }
+
     public static func load(from store: Store) async -> Preferences {
         guard let raw = try? await store.setting(settingKey),
-              let data = raw.data(using: .utf8),
-              let decoded = try? JSONDecoder().decode(Preferences.self, from: data) else {
+              let data = raw.data(using: .utf8) else {
             return .default
         }
-        return decoded
+        do {
+            return try JSONDecoder().decode(Preferences.self, from: data)
+        } catch {
+            // Should not happen — every field has a default and decoding is
+            // tolerant of missing ones — so if it does, say so rather than
+            // silently handing the user a fresh set of defaults and letting
+            // them wonder where their settings went.
+            RedactingLogger.shared.error(
+                "could not read saved preferences, falling back to defaults: \(error)")
+            return .default
+        }
     }
 
     public func save(to store: Store) async throws {

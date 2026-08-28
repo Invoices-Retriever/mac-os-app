@@ -1,0 +1,64 @@
+/* Invoices Retriever — chaînes du cœur (erreurs et libellés du modèle).
+   Les clés sont le texte anglais source. L'interface est traduite ailleurs. */
+
+/* --- Erreurs ------------------------------------------------------------ */
+"Sign-in required: %@" = "Connexion nécessaire : %@";
+"Sign-in failed: %@" = "Échec de la connexion : %@";
+"The portal blocked automated access: %@. Collect this source by hand." = "Le portail a bloqué l'accès automatisé : %@. Récupérez cette source à la main.";
+"Plugin tried to reach %1$@, which is not in allowedDomains (%2$@)" = "Le plugin a tenté d'atteindre %1$@, absent de allowedDomains (%2$@)";
+"Step '%1$@' timed out after %2$@ ms" = "L'étape « %1$@ » a expiré après %2$@ ms";
+"Run exceeded its %@ s budget" = "L'exécution a dépassé son budget de %@ s";
+"No element matched %@" = "Aucun élément ne correspond à %@";
+"Check failed: %@" = "Vérification échouée : %@";
+"Invalid plugin: %@" = "Plugin invalide : %@";
+"Plugin requires engine %1$@; this build implements %2$@" = "Le plugin exige le moteur %1$@ ; cette version implémente %2$@";
+"Keychain: %@" = "Trousseau : %@";
+"Storage: %@" = "Stockage : %@";
+"Export: %@" = "Export : %@";
+"Cancelled" = "Annulé";
+
+/* --- État d'exécution --------------------------------------------------- */
+"Running" = "En cours";
+"Succeeded" = "Réussie";
+"Partly succeeded" = "Partiellement réussie";
+"Failed" = "Échouée";
+"Sign-in needed" = "Connexion à refaire";
+
+/* --- Documents ---------------------------------------------------------- */
+"Invoice" = "Facture";
+"Credit note" = "Avoir";
+"Receipt" = "Reçu";
+"Statement" = "Relevé";
+"Document" = "Document";
+
+"Portal" = "Portail";
+"E-mail" = "E-mail";
+"Imported" = "Importé";
+"Found on disk" = "Trouvé sur le disque";
+
+/* --- Planification ------------------------------------------------------ */
+"Manual" = "Manuelle";
+"Daily at %@" = "Chaque jour à %@";
+"Weekly at %@" = "Chaque semaine à %@";
+"Monthly on day %1$@ at %2$@" = "Chaque mois le %1$@ à %2$@";
+
+/* --- Plugins ------------------------------------------------------------ */
+"Working" = "Fonctionne";
+"Degraded" = "Dégradé";
+"Archived" = "Archivé";
+
+"This plugin did not come from the official index. It has not been reviewed by the project." = "Ce plugin ne provient pas de l'index officiel. Il n'a pas été relu par le projet.";
+"It runs its own JavaScript inside the supplier's pages." = "Il exécute son propre JavaScript dans les pages du fournisseur.";
+"It is currently reported as failing for several people." = "Il est actuellement signalé en échec chez plusieurs personnes.";
+"It is archived: unmaintained and broken for more than 90 days." = "Il est archivé : sans mainteneur et cassé depuis plus de 90 jours.";
+"It can open pages, type your credentials and download files on: %@. It cannot reach anywhere else." = "Il peut ouvrir des pages, saisir vos identifiants et télécharger des fichiers sur : %@. Il ne peut atteindre aucun autre domaine.";
+
+/* --- Exports ------------------------------------------------------------ */
+"Folder" = "Dossier";
+"CSV register" = "Registre CSV";
+"JSON register" = "Registre JSON";
+"Webhook" = "Webhook";
+"Paperless-ngx" = "Paperless-ngx";
+
+/* --- Divers ------------------------------------------------------------- */
+"My business" = "Mon entreprise";

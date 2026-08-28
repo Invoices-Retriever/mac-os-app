@@ -7,6 +7,9 @@ import PackageDescription
 // SQLite, WebKit, PDFKit, Vision, Security and CryptoKit all come from the SDK.
 let package = Package(
     name: "InvoicesRetriever",
+    // FR and EN at v1, as the specification's internationalisation requirement
+    // asks. English is the source language and its strings are the keys.
+    defaultLocalization: "en",
     platforms: [.macOS(.v14)],
     products: [
         .library(name: "IRCore", targets: ["IRCore"]),
@@ -18,7 +21,10 @@ let package = Package(
     targets: [
         .target(
             name: "IRCore",
-            resources: [.copy("Resources")]
+            // Two rules on purpose: `copy` keeps bundled-plugins/ a directory,
+            // which the catalogue loader walks, while `process` is what places
+            // the .lproj folders where NSBundle looks for them.
+            resources: [.copy("Resources"), .process("Localization")]
         ),
         .target(
             name: "IRBrowser",
@@ -27,7 +33,8 @@ let package = Package(
         .executableTarget(
             name: "InvoicesRetrieverApp",
             dependencies: ["IRCore", "IRBrowser"],
-            path: "Sources/InvoicesRetriever"
+            path: "Sources/InvoicesRetriever",
+            resources: [.process("Resources")]
         ),
         .executableTarget(
             name: "irctl",

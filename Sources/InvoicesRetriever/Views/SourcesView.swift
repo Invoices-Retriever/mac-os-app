@@ -17,21 +17,21 @@ struct SourcesView: View {
                     ForEach(model.sources) { source in
                         SourceRow(source: source, isRunning: model.runningSourceIDs.contains(source.id))
                             .contextMenu {
-                                Button("Edit…") { editing = source }
-                                Button("Remove…", role: .destructive) { deleting = source }
+                                Button(t("Edit…")) { editing = source }
+                                Button(t("Remove…"), role: .destructive) { deleting = source }
                             }
                     }
                 }
                 .listStyle(.inset)
             }
         }
-        .navigationTitle("Sources")
+        .navigationTitle(t("Sources"))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     Task { await model.collectAll() }
                 } label: {
-                    Label("Collect everything", systemImage: "arrow.down.circle")
+                    Label(t("Collect everything"), systemImage: "arrow.down.circle")
                 }
                 .disabled(model.sources.filter(\.isEnabled).isEmpty || !model.runningSourceIDs.isEmpty)
             }
@@ -46,27 +46,27 @@ struct SourcesView: View {
                                  set: { if !$0 { deleting = nil } }),
             presenting: deleting
         ) { source in
-            Button("Remove and delete stored credentials", role: .destructive) {
+            Button(t("Remove and delete stored credentials"), role: .destructive) {
                 Task { await model.deleteSource(source, purgeCredentials: true) }
                 deleting = nil
             }
-            Button("Remove but keep credentials in the keychain") {
+            Button(t("Remove but keep credentials in the keychain")) {
                 Task { await model.deleteSource(source, purgeCredentials: false) }
                 deleting = nil
             }
-            Button("Cancel", role: .cancel) { deleting = nil }
+            Button(t("Cancel"), role: .cancel) { deleting = nil }
         } message: { _ in
-            Text("Documents already collected stay in your library. Nothing is deleted from the supplier's portal.")
+            Text(t("Documents already collected stay in your library. Nothing is deleted from the supplier's portal."))
         }
     }
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label("No sources yet", systemImage: "building.2")
+            Label(t("No sources yet"), systemImage: "building.2")
         } description: {
-            Text("Add a supplier from the catalogue to start collecting invoices automatically.")
+            Text(t("Add a supplier from the catalogue to start collecting invoices automatically."))
         } actions: {
-            Text("Everything stays on this Mac. Credentials go to your keychain, documents to a folder you choose.")
+            Text(t("Everything stays on this Mac. Credentials go to your keychain, documents to a folder you choose."))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -90,7 +90,7 @@ private struct SourceRow: View {
                 HStack(spacing: 6) {
                     Text(source.displayName).font(.headline)
                     if !source.isEnabled {
-                        Text("disabled")
+                        Text(t("disabled"))
                             .font(.caption2)
                             .padding(.horizontal, 5).padding(.vertical, 1)
                             .background(.quaternary, in: Capsule())
@@ -109,22 +109,22 @@ private struct SourceRow: View {
 
             Spacer()
 
-            Text("\(source.documentCount)")
+            Text(verbatim: number(source.documentCount))
                 .font(.title3.monospacedDigit())
                 .foregroundStyle(.secondary)
-                .help("Documents collected from this source")
+                .help(t("Documents collected from this source"))
 
             if isRunning {
                 ProgressView().controlSize(.small)
-                Button("Stop") { Task { await model.cancel(source) } }
+                Button(t("Stop")) { Task { await model.cancel(source) } }
             } else {
                 if source.lastRunStatus == .needsSignIn {
-                    Button("Sign in") { Task { await model.authenticate(source) } }
+                    Button(t("Sign in")) { Task { await model.authenticate(source) } }
                         .buttonStyle(.borderedProminent)
                 } else {
-                    Button("Sign in") { Task { await model.authenticate(source) } }
+                    Button(t("Sign in")) { Task { await model.authenticate(source) } }
                 }
-                Button("Collect") { Task { await model.collect(source) } }
+                Button(t("Collect")) { Task { await model.collect(source) } }
                     .disabled(!source.isEnabled)
             }
         }

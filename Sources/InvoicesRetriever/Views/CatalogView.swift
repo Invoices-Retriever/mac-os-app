@@ -34,8 +34,8 @@ struct CatalogView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Picker("Country", selection: $country) {
-                    Text("Everywhere").tag(String?.none)
+                Picker(t("Country"), selection: $country) {
+                    Text(t("Everywhere")).tag(String?.none)
                     ForEach(countries, id: \.self) { Text($0).tag(String?.some($0)) }
                 }
                 .pickerStyle(.menu)
@@ -43,7 +43,7 @@ struct CatalogView: View {
 
                 Spacer()
 
-                Text("\(entries.count) plugin(s)")
+                Text(tn("%d plugins", entries.count))
                     .font(.callout).foregroundStyle(.secondary)
             }
             .padding(.horizontal).padding(.vertical, 8)
@@ -52,9 +52,9 @@ struct CatalogView: View {
 
             if entries.isEmpty {
                 ContentUnavailableView {
-                    Label("No plugin matches", systemImage: "magnifyingglass")
+                    Label(t("No plugin matches"), systemImage: "magnifyingglass")
                 } description: {
-                    Text("Your supplier may not be covered yet. Writing a plugin is a single JSON file — see the Plugin developer tab.")
+                    Text(t("Your supplier may not be covered yet. Writing a plugin is a single JSON file — see the Plugin developer tab."))
                 }
             } else {
                 ScrollView {
@@ -67,16 +67,16 @@ struct CatalogView: View {
                 }
             }
         }
-        .searchable(text: $search, prompt: "Search suppliers")
-        .navigationTitle("Catalogue")
+        .searchable(text: $search, prompt: t("Search suppliers"))
+        .navigationTitle(t("Catalogue"))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     isImporting = true
                 } label: {
-                    Label("Install a plugin file…", systemImage: "square.and.arrow.down")
+                    Label(t("Install a plugin file…"), systemImage: "square.and.arrow.down")
                 }
-                .help("Install a plugin that is not in the official index. You will be told what it can do.")
+                .help(t("Install a plugin that is not in the official index. You will be told what it can do."))
             }
         }
         .fileImporter(isPresented: $isImporting, allowedContentTypes: [.json]) { result in
@@ -128,7 +128,7 @@ private struct CatalogCard: View {
                     Badge(text: "Unofficial", colour: .orange, symbol: "questionmark.circle")
                 }
                 Spacer()
-                Button("Add", action: add)
+                Button(t("Add"), action: add)
             }
         }
         .padding(12)

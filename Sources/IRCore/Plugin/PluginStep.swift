@@ -179,11 +179,11 @@ public enum DocumentKind: String, Codable, Sendable, Hashable, CaseIterable {
 
     public var displayName: String {
         switch self {
-        case .invoice: return "Invoice"
-        case .creditNote: return "Credit note"
-        case .receipt: return "Receipt"
-        case .statement: return "Statement"
-        case .other: return "Document"
+        case .invoice: return core("Invoice")
+        case .creditNote: return core("Credit note")
+        case .receipt: return core("Receipt")
+        case .statement: return core("Statement")
+        case .other: return core("Document")
         }
     }
 }

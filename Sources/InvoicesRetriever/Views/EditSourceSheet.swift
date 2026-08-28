@@ -19,10 +19,10 @@ struct EditSourceSheet: View {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .manual: return "Only when I ask"
-            case .daily: return "Every day"
-            case .weekly: return "Every week"
-            case .monthly: return "Every month"
+            case .manual: return t("Only when I ask")
+            case .daily: return t("Every day")
+            case .weekly: return t("Every week")
+            case .monthly: return t("Every month")
             }
         }
     }
@@ -53,14 +53,14 @@ struct EditSourceSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             Form {
-                Section("Source") {
-                    TextField("Name", text: $draft.displayName)
-                    Toggle("Enabled", isOn: $draft.isEnabled)
-                    LabeledContent("Plugin", value: "\(draft.pluginID) \(draft.pluginVersion)")
+                Section(t("Source")) {
+                    TextField(t("Name"), text: $draft.displayName)
+                    Toggle(t("Enabled"), isOn: $draft.isEnabled)
+                    LabeledContent(t("Plugin"), value: "\(draft.pluginID) \(draft.pluginVersion)")
                 }
 
                 if let manifest = pluginManifest, let schema = manifest.configSchema, !schema.isEmpty {
-                    Section("Settings") {
+                    Section(t("Settings")) {
                         ForEach(schema.keys.sorted(), id: \.self) { key in
                             if let field = schema[key] {
                                 configRow(key: key, field: field)
@@ -69,38 +69,38 @@ struct EditSourceSheet: View {
                     }
                 }
 
-                Section("Credentials") {
-                    Toggle("Remember credentials in the keychain", isOn: $draft.rememberCredentials)
+                Section(t("Credentials")) {
+                    Toggle(t("Remember credentials in the keychain"), isOn: $draft.rememberCredentials)
                     if draft.rememberCredentials {
-                        Toggle("Ask for Touch ID each time they are used", isOn: $requireBiometrics)
+                        Toggle(t("Ask for Touch ID each time they are used"), isOn: $requireBiometrics)
                             .disabled(!Keychain.biometricsAvailable())
                     } else {
-                        Text("You will be asked to sign in by hand on every run.")
+                        Text(t("You will be asked to sign in by hand on every run."))
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
 
-                Section("Schedule") {
-                    Picker("Run", selection: $scheduleKind) {
+                Section(t("Schedule")) {
+                    Picker(t("Run"), selection: $scheduleKind) {
                         ForEach(ScheduleKind.allCases) { Text($0.title).tag($0) }
                     }
                     if scheduleKind != .manual {
-                        Stepper("At \(String(format: "%02d", scheduleHour)):00", value: $scheduleHour, in: 0...23)
+                        Stepper(t("At %@", String(format: "%02d:00", scheduleHour)), value: $scheduleHour, in: 0...23)
                     }
                     if scheduleKind == .monthly {
-                        Stepper("On day \(scheduleDay)", value: $scheduleDay, in: 1...28)
+                        Stepper(t("On day %@", number(scheduleDay)), value: $scheduleDay, in: 1...28)
                     }
                     if scheduleKind != .manual && !model.preferences.schedulerEnabled {
-                        Label("Scheduling is off in Settings, so nothing will run automatically yet.",
+                        Label(t("Scheduling is off in Settings, so nothing will run automatically yet."),
                               systemImage: "info.circle")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
 
-                Section("Collection window") {
-                    Stepper("Look back \(draft.lookbackDays) days on the first run",
+                Section(t("Collection window")) {
+                    Stepper(tn("Look back %d days on the first run", draft.lookbackDays),
                             value: $draft.lookbackDays, in: 7...730, step: 7)
-                    Text("After a successful run, only documents newer than the last success are fetched.")
+                    Text(t("After a successful run, only documents newer than the last success are fetched."))
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -109,8 +109,8 @@ struct EditSourceSheet: View {
             Divider()
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }
-                Button("Save") {
+                Button(t("Cancel")) { dismiss() }
+                Button(t("Save")) {
                     draft.schedule = schedule
                     Task {
                         if !newSecrets.isEmpty {

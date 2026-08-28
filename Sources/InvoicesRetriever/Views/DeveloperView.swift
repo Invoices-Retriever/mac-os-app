@@ -22,25 +22,25 @@ struct DeveloperView: View {
 
             if reports.isEmpty {
                 ContentUnavailableView {
-                    Label("No local plugin folder", systemImage: "hammer")
+                    Label(t("No local plugin folder"), systemImage: "hammer")
                 } description: {
-                    Text("Choose the folder where you are editing plugin JSON files. They are loaded ahead of the shipped versions, so you can iterate on an existing plugin without uninstalling anything.")
+                    Text(t("Choose the folder where you are editing plugin JSON files. They are loaded ahead of the shipped versions, so you can iterate on an existing plugin without uninstalling anything."))
                 } actions: {
-                    Button("Choose a folder…") { chooseFolder() }
+                    Button(t("Choose a folder…")) { chooseFolder() }
                 }
             } else {
                 List {
                     ForEach(reports, id: \.name) { entry in
                         Section(entry.name) {
                             if entry.report.issues.isEmpty {
-                                Label("No issues", systemImage: "checkmark.circle")
+                                Label(t("No issues"), systemImage: "checkmark.circle")
                                     .foregroundStyle(.green)
                             }
                             ForEach(entry.report.issues.sorted(by: { $0.severity < $1.severity })) { issue in
                                 IssueRow(issue: issue)
                             }
                             if entry.report.requiresHumanReview {
-                                Label("Contains runJs, so CI cannot merge it alone — it needs a human reviewer.",
+                                Label(t("Contains runJs, so CI cannot merge it alone — it needs a human reviewer."),
                                       systemImage: "person.badge.shield.checkmark")
                                     .font(.callout)
                                     .foregroundStyle(.purple)
@@ -53,14 +53,14 @@ struct DeveloperView: View {
             Divider()
             footer
         }
-        .navigationTitle("Plugin developer")
+        .navigationTitle(t("Plugin developer"))
         .task { await refresh() }
     }
 
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Engine \(PluginManifest.engineVersion.description)")
+                Text(t("Engine %@", PluginManifest.engineVersion.description))
                     .font(.callout)
                 ForEach(folders, id: \.self) { url in
                     Text(url.path)
@@ -69,8 +69,8 @@ struct DeveloperView: View {
                 }
             }
             Spacer()
-            Button("Add folder…") { chooseFolder() }
-            Button("Reload") { Task { await refresh() } }
+            Button(t("Add folder…")) { chooseFolder() }
+            Button(t("Reload")) { Task { await refresh() } }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
         }
         .padding()
@@ -78,15 +78,15 @@ struct DeveloperView: View {
 
     private var footer: some View {
         HStack(spacing: 16) {
-            Button("Copy the JSON Schema path") {
+            Button(t("Copy the JSON Schema path")) {
                 if let url = BundledResources.schemaURL {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(url.path, forType: .string)
                 }
             }
-            .help("Point your editor at this for autocompletion")
+            .help(t("Point your editor at this for autocompletion"))
 
-            Text("Step through a plugin with:  irctl run my-plugin.json --step")
+            Text(t("Step through a plugin with:  irctl run my-plugin.json --step"))
                 .font(.caption.monospaced())
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)

@@ -30,12 +30,12 @@ public enum ExportDestinationKind: String, Codable, Sendable, Hashable, CaseIter
 
     public var displayName: String {
         switch self {
-        case .folder: return "Folder"
-        case .csv: return "CSV register"
-        case .json: return "JSON register"
-        case .webhook: return "Webhook"
-        case .email: return "E-mail"
-        case .paperless: return "Paperless-ngx"
+        case .folder: return core("Folder")
+        case .csv: return core("CSV register")
+        case .json: return core("JSON register")
+        case .webhook: return core("Webhook")
+        case .email: return core("E-mail")
+        case .paperless: return core("Paperless-ngx")
         }
     }
 }

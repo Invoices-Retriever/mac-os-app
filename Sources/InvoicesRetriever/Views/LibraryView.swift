@@ -19,11 +19,11 @@ struct LibraryView: View {
 
         var title: String {
             switch self {
-            case .thisMonth: return "This month"
-            case .lastMonth: return "Last month"
-            case .thisQuarter: return "This quarter"
-            case .thisYear: return "This year"
-            case .everything: return "Everything"
+            case .thisMonth: return t("This month")
+            case .lastMonth: return t("Last month")
+            case .thisQuarter: return t("This quarter")
+            case .thisYear: return t("This year")
+            case .everything: return t("Everything")
             }
         }
 
@@ -82,13 +82,13 @@ struct LibraryView: View {
                 DocumentDetailView(document: selected, previewURL: $previewURL)
                     .frame(minWidth: 320, idealWidth: 380)
             } else {
-                Text("Select a document")
+                Text(t("Select a document"))
                     .foregroundStyle(.secondary)
                     .frame(minWidth: 320)
             }
         }
-        .navigationTitle("Library")
-        .searchable(text: $search, prompt: "Search issuer, number or text")
+        .navigationTitle(t("Library"))
+        .searchable(text: $search, prompt: t("Search issuer, number or text"))
         .onChange(of: search) { _, _ in applyFilter() }
         .onChange(of: period) { _, _ in applyFilter() }
         .onChange(of: showingReviewOnly) { _, _ in applyFilter() }
@@ -96,13 +96,13 @@ struct LibraryView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { exporting = true } label: {
-                    Label("Export…", systemImage: "square.and.arrow.up")
+                    Label(t("Export…"), systemImage: "square.and.arrow.up")
                 }
                 .disabled(model.documents.isEmpty)
             }
             ToolbarItem {
                 Button { importFiles() } label: {
-                    Label("Import PDFs…", systemImage: "plus")
+                    Label(t("Import PDFs…"), systemImage: "plus")
                 }
             }
         }
@@ -118,13 +118,13 @@ struct LibraryView: View {
             }
             .frame(width: 150)
 
-            Toggle("Needs a look", isOn: $showingReviewOnly)
+            Toggle(t("Needs a look"), isOn: $showingReviewOnly)
                 .toggleStyle(.checkbox)
-                .help("Documents where a field was guessed rather than declared by the plugin")
+                .help(t("Documents where a field was guessed rather than declared by the plugin"))
 
             Spacer()
-            Button("Rescan folder") { Task { await model.rescanLibrary() } }
-                .help("Rebuild the index from the files on disk")
+            Button(t("Rescan folder")) { Task { await model.rescanLibrary() } }
+                .help(t("Rebuild the index from the files on disk"))
         }
         .padding(.horizontal).padding(.vertical, 8)
     }
@@ -143,12 +143,12 @@ struct LibraryView: View {
                     if document.needsReview {
                         Image(systemName: "questionmark.circle")
                             .foregroundStyle(.orange)
-                            .help("Some fields were guessed. Check and confirm them.")
+                            .help(t("Some fields were guessed. Check and confirm them."))
                     }
                     if document.verifiedByHuman {
                         Image(systemName: "checkmark.seal.fill")
                             .foregroundStyle(.green)
-                            .help("Checked by you")
+                            .help(t("Checked by you"))
                     }
                 }
             }
@@ -170,9 +170,9 @@ struct LibraryView: View {
 
     private var summary: some View {
         HStack {
-            Text("\(model.documents.count) document(s)")
+            Text(tn("%d documents", model.documents.count))
             if let total {
-                Text("· total \(total.formatted())").monospacedDigit()
+                Text(t("· total %@", total.formatted())).monospacedDigit()
             }
             Spacer()
         }

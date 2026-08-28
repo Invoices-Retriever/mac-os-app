@@ -15,7 +15,10 @@ public struct Money: Codable, Hashable, Sendable {
         Decimal(cents) / 100
     }
 
-    public func formatted(locale: Locale = .current) -> String {
+    /// Formatted with the user's regional settings, which are deliberately
+    /// separate from the interface language: reading the interface in English
+    /// does not mean wanting "1,234.56 €" instead of "1 234,56 €".
+    public func formatted(locale: Locale = Localization.formattingLocale) -> String {
         let f = NumberFormatter()
         f.numberStyle = .currency
         f.currencyCode = currency

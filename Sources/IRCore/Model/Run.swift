@@ -50,12 +50,12 @@ public enum RunStatus: String, Codable, Sendable, Hashable, CaseIterable {
 
     public var displayName: String {
         switch self {
-        case .running: return "Running"
-        case .succeeded: return "Succeeded"
-        case .partial: return "Partly succeeded"
-        case .failed: return "Failed"
-        case .needsSignIn: return "Sign-in needed"
-        case .cancelled: return "Cancelled"
+        case .running: return core("Running")
+        case .succeeded: return core("Succeeded")
+        case .partial: return core("Partly succeeded")
+        case .failed: return core("Failed")
+        case .needsSignIn: return core("Sign-in needed")
+        case .cancelled: return core("Cancelled")
         }
     }
 }

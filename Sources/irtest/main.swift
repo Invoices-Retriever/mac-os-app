@@ -6,6 +6,11 @@ import IRCore
 // something breaks, the first failure in this list is usually the cause of the
 // rest.
 
+// Pin the interface language, so that a contributor on a French Mac and CI on
+// an English one see the same assertions pass or fail. The localization suite
+// changes it deliberately and puts it back.
+Localization.setLanguage(.english)
+
 await suite("Amounts") {
     await test("French format, non-breaking space and comma decimal") {
         expectEqual(MoneyParser.parse("1 234,56 €")?.cents, 123456)
@@ -192,6 +197,8 @@ await suite("Index signing") {
     }
 }
 
+await runLocalizationSuites()
+await runInterfaceCatalogueSuites()
 await runPluginSuites()
 await runEngineSuites()
 await runStorageSuites()

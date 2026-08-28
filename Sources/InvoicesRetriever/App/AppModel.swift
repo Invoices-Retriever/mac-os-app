@@ -67,6 +67,7 @@ final class AppModel {
             }
             store = try await Store.open(at: paths.databaseURL)
             preferences = await Preferences.load(from: store)
+            applyLanguage()
 
             if let path = preferences.libraryPath {
                 paths = AppPaths(supportDirectory: paths.supportDirectory,
@@ -113,7 +114,7 @@ final class AppModel {
                 await scheduler.setEnabled(true, entityID: entityID)
             }
         } catch {
-            alert = AlertContent(title: "Could not start",
+            alert = AlertContent(title: t("Could not start"),
                                  message: error.localizedDescription)
         }
         isLoading = false
@@ -140,7 +141,7 @@ final class AppModel {
             recentRuns = try await store.runs(limit: 60)
             catalogEntries = await catalog.all()
         } catch {
-            alert = AlertContent(title: "Could not read the library",
+            alert = AlertContent(title: t("Could not read the library"),
                                  message: error.localizedDescription)
         }
     }
@@ -179,7 +180,7 @@ final class AppModel {
         } catch {
             // Never leave a half-created source with orphaned secrets behind.
             try? vault.purge(source: source.id)
-            alert = AlertContent(title: "Could not add the source",
+            alert = AlertContent(title: t("Could not add the source"),
                                  message: error.localizedDescription)
             return nil
         }
@@ -190,7 +191,7 @@ final class AppModel {
             try await store.upsert(source)
             await reload()
         } catch {
-            alert = AlertContent(title: "Could not save", message: error.localizedDescription)
+            alert = AlertContent(title: t("Could not save"), message: error.localizedDescription)
         }
     }
 
@@ -205,7 +206,7 @@ final class AppModel {
                 }
             }
         } catch {
-            alert = AlertContent(title: "Could not save to the keychain",
+            alert = AlertContent(title: t("Could not save to the keychain"),
                                  message: error.localizedDescription)
         }
     }
@@ -216,13 +217,13 @@ final class AppModel {
             await reload()
             if purgeCredentials {
                 alert = AlertContent(
-                    title: "Source removed",
+                    title: t("Source removed"),
                     message: purged == 0
-                        ? "No credentials were stored for this source."
-                        : "\(purged) stored credential(s) were deleted from the keychain.")
+                        ? t("No credentials were stored for this source.")
+                        : tn("%d stored credentials were deleted from the keychain.", purged))
             }
         } catch {
-            alert = AlertContent(title: "Could not remove the source",
+            alert = AlertContent(title: t("Could not remove the source"),
                                  message: error.localizedDescription)
         }
     }
@@ -236,7 +237,7 @@ final class AppModel {
             try await collector.authenticate(source: source)
             await reload()
         } catch {
-            alert = AlertContent(title: "Sign-in to \(source.displayName) failed",
+            alert = AlertContent(title: t("Sign-in to %@ failed", source.displayName),
                                  message: error.localizedDescription)
         }
     }
@@ -248,10 +249,10 @@ final class AppModel {
         await reload()
         if report.status == .needsSignIn {
             alert = AlertContent(
-                title: "\(source.displayName) needs you to sign in",
-                message: "The stored session has expired. Use “Sign in” to open the portal, deal with two-factor authentication, then collect again.")
+                title: t("%@ needs you to sign in", source.displayName),
+                message: t("The stored session has expired. Use “Sign in” to open the portal, deal with two-factor authentication, then collect again."))
         } else if let error = report.error, !report.status.countsAsSuccess {
-            alert = AlertContent(title: "\(source.displayName) failed", message: error)
+            alert = AlertContent(title: t("%@ failed", source.displayName), message: error)
         }
     }
 
@@ -267,7 +268,7 @@ final class AppModel {
             }
             finishBatch(batch)
         } catch {
-            alert = AlertContent(title: "Collection failed", message: error.localizedDescription)
+            alert = AlertContent(title: t("Collection failed"), message: error.localizedDescription)
         }
         await reload()
     }
@@ -309,7 +310,7 @@ final class AppModel {
             try await store.upsert(updated)
             await reloadDocuments()
         } catch {
-            alert = AlertContent(title: "Could not save", message: error.localizedDescription)
+            alert = AlertContent(title: t("Could not save"), message: error.localizedDescription)
         }
     }
 
@@ -329,14 +330,15 @@ final class AppModel {
                     duplicates += 1
                 }
             } catch {
-                alert = AlertContent(title: "Could not import \(url.lastPathComponent)",
+                alert = AlertContent(title: t("Could not import %@", url.lastPathComponent),
                                      message: error.localizedDescription)
             }
         }
         await reloadDocuments()
         if imported + duplicates > 0 {
-            alert = AlertContent(title: "Import finished",
-                                 message: "\(imported) added, \(duplicates) already in the library.")
+            alert = AlertContent(title: t("Import finished"),
+                                 message: t("%1$@ added, %2$@ already in the library.",
+                                            number(imported), number(duplicates)))
         }
     }
 
@@ -345,13 +347,15 @@ final class AppModel {
         do {
             let result = try await library.rescan(entityID: entity.id)
             await reloadDocuments()
-            var message = "\(result.added) new file(s) indexed, \(result.alreadyKnown) already known."
+            var message = t("%1$@ new file(s) indexed, %2$@ already known.",
+                            number(result.added), number(result.alreadyKnown))
             if !result.missingFiles.isEmpty {
-                message += "\n\(result.missingFiles.count) indexed document(s) are missing from disk."
+                message += "\n" + tn("%d indexed documents are missing from disk.",
+                                      result.missingFiles.count)
             }
-            alert = AlertContent(title: "Rescan finished", message: message)
+            alert = AlertContent(title: t("Rescan finished"), message: message)
         } catch {
-            alert = AlertContent(title: "Rescan failed", message: error.localizedDescription)
+            alert = AlertContent(title: t("Rescan failed"), message: error.localizedDescription)
         }
     }
 
@@ -360,7 +364,7 @@ final class AppModel {
             try await library.delete(document, removeFile: removeFile)
             await reloadDocuments()
         } catch {
-            alert = AlertContent(title: "Could not delete", message: error.localizedDescription)
+            alert = AlertContent(title: t("Could not delete"), message: error.localizedDescription)
         }
     }
 
@@ -370,19 +374,41 @@ final class AppModel {
         let report = await exportService.export(documents, to: exporter, force: force)
         await reloadDocuments()
 
-        var message = "\(report.exportedCount) document(s) exported"
-        if !report.skipped.isEmpty { message += ", \(report.skipped.count) already sent" }
-        if !report.failed.isEmpty { message += ", \(report.failed.count) failed" }
-        if let summary = report.summary { message += ".\n\(summary)" }
-        if let first = report.failed.first { message += "\nFirst failure: \(first.message)" }
+        var message = tn("%d documents exported", report.exportedCount)
+        if !report.skipped.isEmpty {
+            message += ", " + tn("%d already sent", report.skipped.count)
+        }
+        if !report.failed.isEmpty {
+            message += ", " + tn("%d failed", report.failed.count)
+        }
+        if let summary = report.summary { message += ".\n" + summary }
+        if let first = report.failed.first {
+            message += "\n" + t("First failure: %@", first.message)
+        }
 
-        alert = AlertContent(title: "Export to \(exporter.displayName)", message: message)
+        alert = AlertContent(title: t("Export to %@", exporter.displayName), message: message)
     }
 
     // MARK: - Preferences
 
+    /// The interface language is applied before anything else in `save`,
+    /// because the alert that a failing save produces should already be in the
+    /// language the user just chose.
+    private func applyLanguage() {
+        Localization.setLanguage(preferences.interfaceLanguage
+            .flatMap(Localization.Language.init(rawValue:)))
+        languageRevision &+= 1
+    }
+
+    /// Bumped whenever the language changes. The root view keys its identity on
+    /// it, which is what forces SwiftUI to rebuild a tree whose strings were
+    /// resolved eagerly rather than through LocalizedStringKey.
+    private(set) var languageRevision = 0
+
     func save(_ newValue: Preferences) async {
+        let languageChanged = newValue.interfaceLanguage != preferences.interfaceLanguage
         preferences = newValue
+        if languageChanged { applyLanguage() }
         try? await newValue.save(to: store)
         library.fileTemplate = NamingTemplate(pattern: newValue.fileNamePattern)
         library.folderTemplate = NamingTemplate(pattern: newValue.folderPattern)
@@ -399,10 +425,10 @@ final class AppModel {
             let entry = try await catalog.install(from: url)
             await reload()
             alert = AlertContent(
-                title: "Installed \(entry.manifest.name)",
+                title: t("Installed %@", entry.manifest.name),
                 message: entry.warnings.joined(separator: "\n\n") + "\n\n" + entry.capabilitySummary)
         } catch {
-            alert = AlertContent(title: "Could not install the plugin",
+            alert = AlertContent(title: t("Could not install the plugin"),
                                  message: error.localizedDescription)
         }
     }
@@ -423,11 +449,13 @@ final class AppModel {
     /// to know it is done and whether anything needs them.
     private func notify(_ batch: CollectionService.BatchReport) {
         let content = UNMutableNotificationContent()
-        content.title = "Collection finished"
-        var parts = ["\(batch.newDocumentCount) new document(s)"]
-        if !batch.failedSources.isEmpty { parts.append("\(batch.failedSources.count) source(s) failed") }
+        content.title = t("Collection finished")
+        var parts = [tn("%d new documents", batch.newDocumentCount)]
+        if !batch.failedSources.isEmpty {
+            parts.append(tn("%d sources failed", batch.failedSources.count))
+        }
         if !batch.sourcesNeedingSignIn.isEmpty {
-            parts.append("\(batch.sourcesNeedingSignIn.count) need you to sign in")
+            parts.append(tn("%d need you to sign in", batch.sourcesNeedingSignIn.count))
         }
         content.body = parts.joined(separator: ", ")
 

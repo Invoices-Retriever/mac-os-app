@@ -36,7 +36,13 @@ semantic versioning.
   background daemon.
 - **`irctl`.** Validate, lint, step-debug, extract, and build and sign a plugin
   index.
-- **`irtest`.** A dependency-free test suite that runs without Xcode.
+- **French and English interface.** Both catalogues are complete, with plural
+  rules per language — French treats zero as singular, English does not — and a
+  picker in Settings that overrides the system language. Dates and amounts
+  follow the user's regional settings independently of the interface language.
+- **`irtest`.** A dependency-free test suite that runs without Xcode, including
+  checks that the two catalogues cover exactly the strings the code asks for and
+  that no placeholder is lost in translation.
 
 ### Known gaps
 

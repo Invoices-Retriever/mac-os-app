@@ -30,13 +30,13 @@ struct DocumentDetailView: View {
                 }
 
                 if document.needsReview && !document.verifiedByHuman {
-                    Label("Some of these were read off the PDF rather than declared by the plugin. Check them before exporting.",
+                    Label(t("Some of these were read off the PDF rather than declared by the plugin. Check them before exporting."),
                           systemImage: "exclamationmark.triangle")
                         .font(.callout)
                         .foregroundStyle(.orange)
                 }
 
-                Button("Save and mark as checked") {
+                Button(t("Save and mark as checked")) {
                     Task { await model.setVerified(document, fields: fields) }
                 }
                 .buttonStyle(.borderedProminent)
@@ -44,10 +44,10 @@ struct DocumentDetailView: View {
 
                 GroupBox("File") {
                     VStack(alignment: .leading, spacing: 6) {
-                        LabeledContent("Path", value: document.relativePath)
+                        LabeledContent(t("Path"), value: document.relativePath)
                             .textSelection(.enabled)
-                        LabeledContent("Size", value: "\(document.byteSize / 1024) kB")
-                        LabeledContent("Source", value: document.sourceID
+                        LabeledContent(t("Size"), value: "\(document.byteSize / 1024) kB")
+                        LabeledContent(t("Source"), value: document.sourceID
                             .flatMap { model.sourceNames[$0] } ?? document.origin.displayName)
                         LabeledContent("SHA-256", value: String(document.sha256.prefix(16)) + "…")
                             .textSelection(.enabled)
@@ -59,12 +59,12 @@ struct DocumentDetailView: View {
                 }
 
                 HStack {
-                    Button("Preview") { previewURL = model.library.url(for: document) }
-                    Button("Show in Finder") {
+                    Button(t("Preview")) { previewURL = model.library.url(for: document) }
+                    Button(t("Show in Finder")) {
                         NSWorkspace.shared.activateFileViewerSelecting([model.library.url(for: document)])
                     }
                     Spacer()
-                    Button("Delete…", role: .destructive) { isDeleting = true }
+                    Button(t("Delete…"), role: .destructive) { isDeleting = true }
                 }
             }
             .padding()
@@ -72,16 +72,16 @@ struct DocumentDetailView: View {
         .onAppear(perform: loadFields)
         .onChange(of: document.id) { _, _ in loadFields() }
         .confirmationDialog("Delete this document?", isPresented: $isDeleting) {
-            Button("Move the file to the Trash and forget it", role: .destructive) {
+            Button(t("Move the file to the Trash and forget it"), role: .destructive) {
                 Task { await model.delete(document, removeFile: true) }
             }
-            Button("Forget it but keep the file") {
+            Button(t("Forget it but keep the file")) {
                 Task { await model.delete(document, removeFile: false) }
             }
-            Button("Cancel", role: .cancel) {}
+            Button(t("Cancel"), role: .cancel) {}
         } message: {
             // F7.7: never delete without saying exactly what will happen.
-            Text("Nothing is removed from the supplier's portal. The file goes to the Trash, not straight to nowhere.")
+            Text(t("Nothing is removed from the supplier's portal. The file goes to the Trash, not straight to nowhere."))
         }
     }
 
@@ -121,7 +121,7 @@ struct DocumentDetailView: View {
                 Circle()
                     .fill(confidence >= 0.8 ? Color.green : (confidence >= 0.6 ? .yellow : .orange))
                     .frame(width: 8, height: 8)
-                    .help("Confidence \(Int(confidence * 100))%")
+                    .help(t("Confidence %@%%", number(Int(confidence * 100))))
             }
         }
     }

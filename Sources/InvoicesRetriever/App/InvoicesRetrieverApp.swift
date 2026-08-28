@@ -9,6 +9,10 @@ struct InvoicesRetrieverApp: App {
         WindowGroup {
             RootView()
                 .environment(model)
+                // Strings are resolved when a view body runs, not by SwiftUI's
+                // own LocalizedStringKey machinery, so changing language has to
+                // rebuild the tree rather than merely invalidate it.
+                .id(model.languageRevision)
                 .frame(minWidth: 1040, minHeight: 640)
                 .task { await model.start() }
                 .alert(item: Binding(
@@ -17,18 +21,18 @@ struct InvoicesRetrieverApp: App {
                 )) { content in
                     Alert(title: Text(content.title),
                           message: Text(content.message),
-                          dismissButton: .default(Text("OK")))
+                          dismissButton: .default(Text(t("OK"))))
                 }
         }
         .commands {
             CommandGroup(replacing: .newItem) {}
-            CommandMenu("Collection") {
-                Button("Collect from every source") {
+            CommandMenu(t("Collection")) {
+                Button(t(t("Collect from every source"))) {
                     Task { await model.collectAll() }
                 }
                 .keyboardShortcut("r", modifiers: [.command])
 
-                Button("Rescan the library folder") {
+                Button(t(t("Rescan the library folder"))) {
                     Task { await model.rescanLibrary() }
                 }
             }
@@ -37,6 +41,7 @@ struct InvoicesRetrieverApp: App {
         Settings {
             SettingsView()
                 .environment(model)
+                .id(model.languageRevision)
                 .frame(width: 640, height: 560)
         }
     }

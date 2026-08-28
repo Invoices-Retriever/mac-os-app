@@ -1,0 +1,64 @@
+/* Invoices Retriever — core strings (errors and model labels).
+   Keys are the English source text. Interface strings live in the app target. */
+
+/* --- Errors ------------------------------------------------------------- */
+"Sign-in required: %@" = "Sign-in required: %@";
+"Sign-in failed: %@" = "Sign-in failed: %@";
+"The portal blocked automated access: %@. Collect this source by hand." = "The portal blocked automated access: %@. Collect this source by hand.";
+"Plugin tried to reach %1$@, which is not in allowedDomains (%2$@)" = "Plugin tried to reach %1$@, which is not in allowedDomains (%2$@)";
+"Step '%1$@' timed out after %2$@ ms" = "Step '%1$@' timed out after %2$@ ms";
+"Run exceeded its %@ s budget" = "Run exceeded its %@ s budget";
+"No element matched %@" = "No element matched %@";
+"Check failed: %@" = "Check failed: %@";
+"Invalid plugin: %@" = "Invalid plugin: %@";
+"Plugin requires engine %1$@; this build implements %2$@" = "Plugin requires engine %1$@; this build implements %2$@";
+"Keychain: %@" = "Keychain: %@";
+"Storage: %@" = "Storage: %@";
+"Export: %@" = "Export: %@";
+"Cancelled" = "Cancelled";
+
+/* --- Run status --------------------------------------------------------- */
+"Running" = "Running";
+"Succeeded" = "Succeeded";
+"Partly succeeded" = "Partly succeeded";
+"Failed" = "Failed";
+"Sign-in needed" = "Sign-in needed";
+
+/* --- Documents ---------------------------------------------------------- */
+"Invoice" = "Invoice";
+"Credit note" = "Credit note";
+"Receipt" = "Receipt";
+"Statement" = "Statement";
+"Document" = "Document";
+
+"Portal" = "Portal";
+"E-mail" = "E-mail";
+"Imported" = "Imported";
+"Found on disk" = "Found on disk";
+
+/* --- Schedules ---------------------------------------------------------- */
+"Manual" = "Manual";
+"Daily at %@" = "Daily at %@";
+"Weekly at %@" = "Weekly at %@";
+"Monthly on day %1$@ at %2$@" = "Monthly on day %1$@ at %2$@";
+
+/* --- Plugins ------------------------------------------------------------ */
+"Working" = "Working";
+"Degraded" = "Degraded";
+"Archived" = "Archived";
+
+"This plugin did not come from the official index. It has not been reviewed by the project." = "This plugin did not come from the official index. It has not been reviewed by the project.";
+"It runs its own JavaScript inside the supplier's pages." = "It runs its own JavaScript inside the supplier's pages.";
+"It is currently reported as failing for several people." = "It is currently reported as failing for several people.";
+"It is archived: unmaintained and broken for more than 90 days." = "It is archived: unmaintained and broken for more than 90 days.";
+"It can open pages, type your credentials and download files on: %@. It cannot reach anywhere else." = "It can open pages, type your credentials and download files on: %@. It cannot reach anywhere else.";
+
+/* --- Exports ------------------------------------------------------------ */
+"Folder" = "Folder";
+"CSV register" = "CSV register";
+"JSON register" = "JSON register";
+"Webhook" = "Webhook";
+"Paperless-ngx" = "Paperless-ngx";
+
+/* --- Misc --------------------------------------------------------------- */
+"My business" = "My business";

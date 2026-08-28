@@ -21,18 +21,18 @@ struct ExportSheet: View {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .folder: return "Folder"
-            case .csv: return "CSV register"
-            case .json: return "JSON register"
-            case .webhook: return "Webhook"
+            case .folder: return t("Folder")
+            case .csv: return t("CSV register")
+            case .json: return t("JSON register")
+            case .webhook: return t("Webhook")
             }
         }
         var explanation: String {
             switch self {
-            case .folder: return "Copies the PDFs into a folder, organised the way your library is. This is what you hand to your accountant."
-            case .csv: return "One row per document, for reconciliation in a spreadsheet. Amounts use a dot decimal so any tool reads them."
-            case .json: return "The same register as JSON, for a script."
-            case .webhook: return "Posts each document to a URL as multipart: the metadata as JSON, the PDF as a file."
+            case .folder: return t("Copies the PDFs into a folder, organised the way your library is. This is what you hand to your accountant.")
+            case .csv: return t("One row per document, for reconciliation in a spreadsheet. Amounts use a dot decimal so any tool reads them.")
+            case .json: return t("The same register as JSON, for a script.")
+            case .webhook: return t("Posts each document to a URL as multipart: the metadata as JSON, the PDF as a file.")
             }
         }
     }
@@ -41,7 +41,7 @@ struct ExportSheet: View {
         VStack(spacing: 0) {
             Form {
                 Section {
-                    Picker("Send to", selection: $destination) {
+                    Picker(t("Send to"), selection: $destination) {
                         ForEach(Kind.allCases) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.segmented)
@@ -57,21 +57,21 @@ struct ExportSheet: View {
                                 .lineLimit(1).truncationMode(.middle)
                                 .foregroundStyle(folderURL == nil ? .secondary : .primary)
                             Spacer()
-                            Button("Choose…") { chooseDestination() }
+                            Button(t("Choose…")) { chooseDestination() }
                         }
                     }
                 case .webhook:
-                    Section("Webhook") {
+                    Section(t("Webhook")) {
                         TextField("https://…", text: $webhookURL)
-                        TextField("Authorization header (optional)", text: $webhookHeader,
-                                  prompt: Text("Bearer …"))
-                        Text("The URL and any header are stored in this window only — configure a permanent destination in Settings once you are happy with it.")
+                        TextField(t("Authorization header (optional)"), text: $webhookHeader,
+                                  prompt: Text(t("Bearer …")))
+                        Text(t("The URL and any header are stored in this window only — configure a permanent destination in Settings once you are happy with it."))
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
 
                 Section {
-                    Toggle("Send documents that were already exported here", isOn: $resend)
+                    Toggle(t("Send documents that were already exported here"), isOn: $resend)
                     Text(resend
                          ? "Every one of the \(documents.count) selected documents will be sent."
                          : "Documents already sent to this destination will be skipped.")
@@ -82,11 +82,11 @@ struct ExportSheet: View {
 
             Divider()
             HStack {
-                Text("\(documents.count) document(s) in the current view")
+                Text(tn("%d documents in the current view", documents.count))
                     .font(.callout).foregroundStyle(.secondary)
                 Spacer()
-                Button("Cancel") { dismiss() }
-                Button("Export") { export() }
+                Button(t("Cancel")) { dismiss() }
+                Button(t("Export")) { export() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(!isReady || isWorking)
             }
@@ -95,7 +95,7 @@ struct ExportSheet: View {
         .frame(width: 560, height: 480)
         .overlay {
             if isWorking {
-                ProgressView("Exporting…")
+                ProgressView(t("Exporting…"))
                     .padding(30)
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
             }

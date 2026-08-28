@@ -22,33 +22,34 @@ public enum IRError: Error, LocalizedError, Sendable {
     public var errorDescription: String? {
         switch self {
         case .authenticationRequired(let s):
-            return "Sign-in required: \(s)"
+            return core("Sign-in required: %@", s)
         case .authenticationFailed(let s):
-            return "Sign-in failed: \(s)"
+            return core("Sign-in failed: %@", s)
         case .blockedByPortal(let s):
-            return "The portal blocked automated access: \(s). Collect this source by hand."
+            return core("The portal blocked automated access: %@. Collect this source by hand.", s)
         case .domainNotAllowed(let host, let allowed):
-            return "Plugin tried to reach \(host), which is not in allowedDomains (\(allowed.joined(separator: ", ")))"
+            return core("Plugin tried to reach %1$@, which is not in allowedDomains (%2$@)",
+                        host, allowed.joined(separator: ", "))
         case .stepTimedOut(let action, let ms):
-            return "Step '\(action)' timed out after \(ms) ms"
+            return core("Step '%1$@' timed out after %2$@ ms", action, String(ms))
         case .runBudgetExhausted(let seconds):
-            return "Run exceeded its \(seconds) s budget"
+            return core("Run exceeded its %@ s budget", String(seconds))
         case .elementNotFound(let selector):
-            return "No element matched \(selector)"
+            return core("No element matched %@", selector)
         case .assertionFailed(let s):
-            return "Check failed: \(s)"
+            return core("Check failed: %@", s)
         case .invalidPlugin(let s):
-            return "Invalid plugin: \(s)"
+            return core("Invalid plugin: %@", s)
         case .engineTooOld(let required, let current):
-            return "Plugin requires engine \(required); this build implements \(current)"
+            return core("Plugin requires engine %1$@; this build implements %2$@", required, current)
         case .vault(let s):
-            return "Keychain: \(s)"
+            return core("Keychain: %@", s)
         case .storage(let s):
-            return "Storage: \(s)"
+            return core("Storage: %@", s)
         case .export(let s):
-            return "Export: \(s)"
+            return core("Export: %@", s)
         case .cancelled:
-            return "Cancelled"
+            return core("Cancelled")
         }
     }
 

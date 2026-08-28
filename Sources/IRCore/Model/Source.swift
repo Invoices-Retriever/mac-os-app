@@ -84,11 +84,22 @@ public enum Schedule: Codable, Sendable, Hashable {
 
     public var displayName: String {
         switch self {
-        case .manual: return "Manual"
-        case .daily(let h): return String(format: "Daily at %02d:00", h)
-        case .weekly(_, let h): return String(format: "Weekly at %02d:00", h)
-        case .monthly(let d, let h): return String(format: "Monthly on day %d at %02d:00", d, h)
+        case .manual:
+            return core("Manual")
+        case .daily(let hour):
+            return core("Daily at %@", Self.hour(hour))
+        case .weekly(_, let hour):
+            return core("Weekly at %@", Self.hour(hour))
+        case .monthly(let day, let hour):
+            return core("Monthly on day %1$@ at %2$@", String(day), Self.hour(hour))
         }
+    }
+
+    /// Formatted as a plain 24-hour clock rather than through a DateFormatter:
+    /// this is a schedule the user set, not a moment in time, and it should not
+    /// drift with the calendar or the timezone.
+    private static func hour(_ value: Int) -> String {
+        String(format: "%02d:00", value)
     }
 
     public var isAutomatic: Bool {

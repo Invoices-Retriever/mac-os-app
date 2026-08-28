@@ -8,9 +8,9 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
-            general.tabItem { Label("General", systemImage: "gearshape") }
-            naming.tabItem { Label("Naming", systemImage: "textformat") }
-            privacy.tabItem { Label("Privacy", systemImage: "hand.raised") }
+            general.tabItem { Label(t("General"), systemImage: "gearshape") }
+            naming.tabItem { Label(t("Naming"), systemImage: "textformat") }
+            privacy.tabItem { Label(t("Privacy"), systemImage: "hand.raised") }
         }
         .onAppear {
             guard !loaded else { return }
@@ -24,25 +24,39 @@ struct SettingsView: View {
 
     private var general: some View {
         Form {
-            Section("Library") {
+            Section(t("Language")) {
+                Picker(t("Interface language"), selection: Binding(
+                    get: { draft.interfaceLanguage },
+                    set: { draft.interfaceLanguage = $0 }
+                )) {
+                    Text(t("Follow the system")).tag(String?.none)
+                    ForEach(Localization.Language.allCases) { language in
+                        Text(language.endonym).tag(String?.some(language.rawValue))
+                    }
+                }
+                Text(t("Dates and amounts always follow your regional settings, whichever language you pick here."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section(t("Library")) {
                 HStack {
                     Text(draft.libraryPath ?? model.paths.libraryRoot.path)
                         .lineLimit(1).truncationMode(.middle)
                     Spacer()
-                    Button("Change…") { chooseLibrary() }
+                    Button(t("Change…")) { chooseLibrary() }
                 }
-                Text("Documents are stored here in a folder structure you can read without this app. Moving them is your call; use “Rescan folder” afterwards.")
+                Text(t("Documents are stored here in a folder structure you can read without this app. Moving them is your call; use “Rescan folder” afterwards."))
                     .font(.caption).foregroundStyle(.secondary)
             }
 
-            Section("Collection") {
-                Stepper("Collect from \(draft.maximumConcurrency) source(s) at a time",
+            Section(t("Collection")) {
+                Stepper(tn("Collect from %d sources at a time", draft.maximumConcurrency),
                         value: $draft.maximumConcurrency, in: 1...6)
-                Text("More is not always faster: each source runs a browser, and portals notice bursts.")
+                Text(t("More is not always faster: each source runs a browser, and portals notice bursts."))
                     .font(.caption).foregroundStyle(.secondary)
 
-                Toggle("Run scheduled collections while the app is open", isOn: $draft.schedulerEnabled)
-                Text("There is no background helper. Nothing runs when Invoices Retriever is closed.")
+                Toggle(t("Run scheduled collections while the app is open"), isOn: $draft.schedulerEnabled)
+                Text(t("There is no background helper. Nothing runs when Invoices Retriever is closed."))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -52,19 +66,19 @@ struct SettingsView: View {
 
     private var naming: some View {
         Form {
-            Section("File name") {
-                TextField("Pattern", text: $draft.fileNamePattern)
+            Section(t("File name")) {
+                TextField(t("Pattern"), text: $draft.fileNamePattern)
                     .font(.body.monospaced())
                 Text(preview(draft.fileNamePattern) + ".pdf")
                     .font(.callout.monospaced()).foregroundStyle(.secondary)
             }
-            Section("Folders") {
-                TextField("Pattern", text: $draft.folderPattern)
+            Section(t("Folders")) {
+                TextField(t("Pattern"), text: $draft.folderPattern)
                     .font(.body.monospaced())
                 Text(preview(draft.folderPattern) + "/")
                     .font(.callout.monospaced()).foregroundStyle(.secondary)
             }
-            Section("Available tokens") {
+            Section(t("Available tokens")) {
                 ForEach(NamingTemplate.availableTokens, id: \.token) { token in
                     LabeledContent(token.token, value: token.explanation)
                         .font(.callout)
@@ -77,32 +91,32 @@ struct SettingsView: View {
 
     private var privacy: some View {
         Form {
-            Section("What leaves this Mac") {
-                Label("Supplier websites, when you collect", systemImage: "network")
-                Label("The plugin index, to find new and updated plugins", systemImage: "square.grid.2x2")
-                Label("Any export destination you configure yourself", systemImage: "square.and.arrow.up")
-                Text("There is no account, no server of ours, and no telemetry. Documents, credentials and logs stay here.")
+            Section(t("What leaves this Mac")) {
+                Label(t("Supplier websites, when you collect"), systemImage: "network")
+                Label(t("The plugin index, to find new and updated plugins"), systemImage: "square.grid.2x2")
+                Label(t("Any export destination you configure yourself"), systemImage: "square.and.arrow.up")
+                Text(t("There is no account, no server of ours, and no telemetry. Documents, credentials and logs stay here."))
                     .font(.caption).foregroundStyle(.secondary)
             }
 
-            Section("Reading invoices") {
-                Toggle("Use on-device OCR for scanned PDFs", isOn: $draft.enableOCR)
-                Text("Uses Apple's Vision framework. Nothing is sent anywhere.")
+            Section(t("Reading invoices")) {
+                Toggle(t("Use on-device OCR for scanned PDFs"), isOn: $draft.enableOCR)
+                Text(t("Uses Apple's Vision framework. Nothing is sent anywhere."))
                     .font(.caption).foregroundStyle(.secondary)
 
-                Toggle("Ask a language model when a field cannot be read", isOn: $draft.enableLLMFallback)
+                Toggle(t("Ask a language model when a field cannot be read"), isOn: $draft.enableLLMFallback)
                 if draft.enableLLMFallback {
-                    Label("This sends the text of the invoice to the provider you configure. You become responsible for that transfer under the GDPR.",
+                    Label(t("This sends the text of the invoice to the provider you configure. You become responsible for that transfer under the GDPR."),
                           systemImage: "exclamationmark.triangle.fill")
                         .font(.callout).foregroundStyle(.orange)
-                    TextField("Provider", text: Binding(
+                    TextField(t("Provider"), text: Binding(
                         get: { draft.llmProvider ?? "" },
                         set: { draft.llmProvider = $0.nilIfEmpty }),
-                              prompt: Text("A local model endpoint, or an API"))
+                              prompt: Text(t("A local model endpoint, or an API")))
                 }
             }
 
-            Section("Keychain") {
+            Section(t("Keychain")) {
                 Label(Keychain.biometricsAvailable()
                       ? "Touch ID is available on this Mac and can be required per source."
                       : "Touch ID is not available; credentials are protected by your login password.",
