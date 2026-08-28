@@ -15,6 +15,11 @@ public enum IRError: Error, LocalizedError, Sendable {
     case invalidPlugin(String)
     case engineTooOld(required: String, current: String)
     case vault(String)
+    /// The keychain holds this source's credentials but would not hand them
+    /// over. Separate from `vault` because the remedy is specific and the user
+    /// can act on it: re-entering the credentials rewrites the item under the
+    /// signature of the application that is actually running.
+    case credentialsUnreadable(reason: String, source: String)
     case storage(String)
     case export(String)
     case cancelled
@@ -36,6 +41,8 @@ public enum IRError: Error, LocalizedError, Sendable {
             return core("Run exceeded its %@ s budget", String(seconds))
         case .elementNotFound(let selector):
             return core("No element matched %@", selector)
+        case .credentialsUnreadable(let reason, _):
+            return reason
         case .assertionFailed(let s):
             return core("Check failed: %@", s)
         case .invalidPlugin(let s):

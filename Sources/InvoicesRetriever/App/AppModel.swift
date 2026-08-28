@@ -279,6 +279,23 @@ final class AppModel {
         }
     }
 
+    /// Collect ignoring everything already known, looking back as far as the
+    /// source's first-run window allows.
+    ///
+    /// Needed because the incremental cutoff can end up ahead of invoices that
+    /// were never actually collected — a plugin that was fixed after a run went
+    /// wrong, or a window that moved for a reason that turned out to be false.
+    /// Nothing is deleted and nothing is duplicated: deduplication means the
+    /// worst case is re-downloading what is already in the library.
+    func collectFromScratch(_ source: Source) async {
+        guard let store else { return }
+        var reset = source
+        reset.lastSuccessAt = nil
+        try? await store.upsert(reset)
+        await reload()
+        await collect(reset)
+    }
+
     func collect(_ source: Source) async {
         runningSourceIDs.insert(source.id)
         defer { runningSourceIDs.remove(source.id) }

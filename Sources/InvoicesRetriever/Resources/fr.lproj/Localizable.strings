@@ -287,3 +287,5 @@
 "Nothing has run yet" = "Rien n'a encore été lancé";
 "Once you collect from a supplier, every attempt is recorded here — what it found, how long it took, and the log if it went wrong." = "Dès que vous collectez chez un fournisseur, chaque tentative est enregistrée ici — ce qu'elle a trouvé, le temps qu'elle a pris, et le journal en cas d'échec.";
 "What this source needs from you" = "Ce que cette source vous demande";
+"Collect from the beginning" = "Collecter depuis le début";
+"Ignore what has already been collected and look as far back as this source allows. Nothing is duplicated." = "Ignore ce qui a déjà été collecté et remonte aussi loin que cette source le permet. Aucun doublon.";

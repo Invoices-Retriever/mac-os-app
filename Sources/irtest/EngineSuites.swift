@@ -996,3 +996,53 @@ func runAPITransportSuites() async {
         }
     }
 }
+
+/// The incremental window, which decides which invoices are ever looked for.
+@MainActor
+func runIncrementalSuites() async {
+    await suite("Incremental cutoff") {
+
+        await test("Only a complete run moves the window forward") {
+            // A partial run found documents it could not read. Moving past them
+            // means never looking again, and nothing would ever say so.
+            expect(RunStatus.succeeded.advancesIncrementalCutoff)
+            expect(!RunStatus.partial.advancesIncrementalCutoff)
+            expect(!RunStatus.failed.advancesIncrementalCutoff)
+            expect(!RunStatus.needsSignIn.advancesIncrementalCutoff)
+            expect(!RunStatus.cancelled.advancesIncrementalCutoff)
+            // It still reads as a success to the user, and still clears the
+            // error: the two questions are different.
+            expect(RunStatus.partial.countsAsSuccess)
+        }
+
+        await test("A source that never succeeded looks back its full window") {
+            var source = Source(entityID: UUID(), pluginID: "p", pluginVersion: "1.0.0",
+                                displayName: "S", lookbackDays: 90)
+            source.lastSuccessAt = nil
+            let now = Date()
+            let cutoff = source.incrementalCutoff(now: now)
+            expectEqual(Int(now.timeIntervalSince(cutoff) / 86_400), 90)
+        }
+
+        await test("A successful run leaves a week of overlap") {
+            // Portals back-date invoices by a few days, and re-seeing one costs
+            // nothing because deduplication catches it.
+            var source = Source(entityID: UUID(), pluginID: "p", pluginVersion: "1.0.0",
+                                displayName: "S")
+            let success = Date()
+            source.lastSuccessAt = success
+            expectEqual(Int(success.timeIntervalSince(source.incrementalCutoff()) / 86_400), 7)
+        }
+
+        await test("Clearing the last success reopens the full window") {
+            // What "collect from the beginning" does, and the only way back
+            // when the window has moved past invoices that were never read.
+            var source = Source(entityID: UUID(), pluginID: "p", pluginVersion: "1.0.0",
+                                displayName: "S", lookbackDays: 365)
+            source.lastSuccessAt = Date()
+            let narrow = source.incrementalCutoff()
+            source.lastSuccessAt = nil
+            expect(source.incrementalCutoff() < narrow)
+        }
+    }
+}

@@ -71,8 +71,24 @@ public struct Keychain: Sendable {
             return String(decoding: data, as: UTF8.self)
         case errSecItemNotFound:
             return nil
-        case errSecUserCanceled, errSecAuthFailed:
-            throw IRError.vault("access to '\(account)' was refused")
+        case errSecUserCanceled:
+            // The prompt appeared and the answer was no. Worth saying plainly:
+            // "refused" reads like a fault in the application, when it was a
+            // button the user pressed a moment ago.
+            throw IRError.credentialsUnreadable(
+                reason: core("macOS asked whether this application could read the saved credentials, and the answer was Deny. Try again and choose “Always Allow”."),
+                source: account)
+        case errSecAuthFailed, errSecInteractionNotAllowed:
+            // No prompt, or one that could not succeed: the item's access list
+            // names a different build of this application. That happens when
+            // the signature changes — a rebuild of a development copy, moving
+            // the application, or a first release replacing a local build.
+            // Re-entering the credentials rewrites the item under the current
+            // signature and it stops for good, so say that rather than an
+            // OSStatus nobody can act on.
+            throw IRError.credentialsUnreadable(
+                reason: core("macOS would not release the saved credentials: they were stored by a differently signed copy of this application. Open the source, enter them again, and this stops happening."),
+                source: account)
         default:
             throw IRError.vault("could not read '\(account)' (OSStatus \(status))")
         }

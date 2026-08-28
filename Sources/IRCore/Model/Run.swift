@@ -51,6 +51,16 @@ public enum RunStatus: String, Codable, Sendable, Hashable, CaseIterable {
     public var isTerminal: Bool { self != .running }
     public var countsAsSuccess: Bool { self == .succeeded || self == .partial }
 
+    /// Whether this run may move the incremental cutoff forward.
+    ///
+    /// Deliberately narrower than `countsAsSuccess`. A partial run is one that
+    /// found documents it could not read — and moving the window past them
+    /// would mean never looking at them again. The user would simply never
+    /// receive those invoices, and nothing would ever say so. Re-reading a
+    /// period costs one request and is caught by deduplication; skipping one
+    /// silently loses documents, so the two are not close to equivalent.
+    public var advancesIncrementalCutoff: Bool { self == .succeeded }
+
     public var displayName: String {
         switch self {
         case .running: return core("Running")

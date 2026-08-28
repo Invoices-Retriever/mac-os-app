@@ -193,6 +193,11 @@ private struct SourceCard: View {
                 } else {
                     Button(signInLabel) { Task { await model.authenticate(source) } }
                 }
+                Button(t("Collect from the beginning")) {
+                    Task { await model.collectFromScratch(source) }
+                }
+                .disabled(!source.isEnabled)
+                .help(t("Ignore what has already been collected and look as far back as this source allows. Nothing is duplicated."))
                 Divider()
                 Button(t("Edit…"), action: edit)
                 Button(t("Remove…"), role: .destructive, action: remove)

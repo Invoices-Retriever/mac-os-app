@@ -239,8 +239,10 @@ public actor CollectionService {
         updated.lastRunAt = run.finishedAt ?? run.startedAt
         updated.lastRunStatus = run.status
         updated.lastErrorMessage = run.errorMessage
-        if run.status.countsAsSuccess {
+        if run.status.advancesIncrementalCutoff {
             updated.lastSuccessAt = run.finishedAt
+        }
+        if run.status.countsAsSuccess {
             updated.lastErrorMessage = nil
         }
         updated.documentCount = (try? await store.documentCount(sourceID: source.id)) ?? source.documentCount
