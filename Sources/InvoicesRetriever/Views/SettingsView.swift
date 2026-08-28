@@ -3,6 +3,7 @@ import IRCore
 
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
+    @Environment(LogoStore.self) private var logos
     @State private var draft = Preferences.default
     @State private var loaded = false
 
@@ -35,6 +36,18 @@ struct SettingsView: View {
                     }
                 }
                 Text(t("Dates and amounts always follow your regional settings, whichever language you pick here."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section(t("Appearance")) {
+                Toggle(t("Show suppliers' logos"), isOn: Binding(
+                    get: { draft.showSupplierLogos },
+                    set: { newValue in
+                        draft.showSupplierLogos = newValue
+                        logos.isEnabled = newValue
+                        if !newValue { logos.clear() }
+                    }))
+                Text(t("Logos come from a public logo service, and are asked for once per plugin in the catalogue — the same list for everybody, so the request says nothing about which suppliers you use. They are then kept on this Mac."))
                     .font(.caption).foregroundStyle(.secondary)
             }
 

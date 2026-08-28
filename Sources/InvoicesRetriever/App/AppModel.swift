@@ -21,12 +21,31 @@ final class AppModel {
     var sources: [Source] = []
     var documents: [InvoiceDocument] = []
     var catalogEntries: [PluginCatalog.Entry] = []
+    var selectedSection: RootSection = .sources
+    /// Unfiltered, so an empty list can say which kind of empty it is.
+    var totalDocumentCount = 0
+
+    /// The plugin behind a source, when it is installed.
+    func manifest(for source: Source) -> PluginManifest? {
+        catalogEntries.first { $0.manifest.id == source.pluginID }?.manifest
+    }
 
     /// True when this source's plugin talks to an API with its own credentials.
     /// It changes what the interface can honestly offer: there is no portal to
     /// open, so "Sign in" would be a button that cannot do anything.
     func isAPIOnly(_ source: Source) -> Bool {
-        catalogEntries.first { $0.manifest.id == source.pluginID }?.manifest.isAPIOnly ?? false
+        manifest(for: source)?.isAPIOnly ?? false
+    }
+
+    /// The plugin a collected document came from, for its supplier's logo.
+    func manifest(forSourceID id: UUID?) -> PluginManifest? {
+        guard let id, let source = sources.first(where: { $0.id == id }) else { return nil }
+        return manifest(for: source)
+    }
+
+    /// Every supplier domain the catalogue knows, for the logo prefetch.
+    var catalogueLogoDomains: [String] {
+        catalogEntries.compactMap(\.manifest.logoDomain)
     }
     var recentRuns: [Run] = []
     var preferences = Preferences.default
@@ -149,6 +168,7 @@ final class AppModel {
             sources = try await store.sources(entityID: entity.id)
             sourceNameBox?.update(sourceNames)
             documents = try await store.documents(filter: documentFilter)
+            totalDocumentCount = try await store.totalDocumentCount()
             recentRuns = try await store.runs(limit: 60)
             catalogEntries = await catalog.all()
         } catch {
@@ -160,6 +180,7 @@ final class AppModel {
     func reloadDocuments() async {
         guard let store else { return }
         documents = (try? await store.documents(filter: documentFilter)) ?? []
+        totalDocumentCount = (try? await store.totalDocumentCount()) ?? totalDocumentCount
     }
 
     // MARK: - Sources

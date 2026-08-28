@@ -76,6 +76,33 @@ public struct PluginManifest: Codable, Sendable, Identifiable, Hashable {
     /// unattended.
     public var isAPIOnly: Bool { api != nil }
 
+    /// The supplier's own domain, for looking up a logo.
+    ///
+    /// The homepage first, because that is the company; `allowedDomains` only
+    /// as a fallback, and then the shortest one — "ovhcloud.com" identifies the
+    /// supplier where "manager.eu.ovhcloud.com" is an implementation detail no
+    /// logo service has heard of.
+    public var logoDomain: String? {
+        if let host = homepage.flatMap({ URL(string: $0) })?.host?.lowercased() {
+            return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+        }
+        return allowedDomains
+            .map { $0.hasPrefix("*.") ? String($0.dropFirst(2)) : $0 }
+            .filter { $0.contains(".") }
+            .min { $0.count < $1.count }
+    }
+
+    /// Initials for the tile shown when there is no logo. Two letters at most:
+    /// "OVHcloud (API)" is O, and "Free Mobile" is FM.
+    public var monogram: String {
+        let words = name
+            .replacingOccurrences(of: "(", with: " ")
+            .split(whereSeparator: { $0 == " " || $0 == "-" || $0 == "_" })
+            .filter { $0.first?.isLetter == true || $0.first?.isNumber == true }
+        let letters = words.prefix(2).compactMap(\.first)
+        return letters.isEmpty ? "?" : String(letters).uppercased()
+    }
+
     /// True when the plugin contains a `runJs` step anywhere, regardless of
     /// what it declares. The declaration is a contributor convenience; this is
     /// the truth, and the UI badge uses this one.

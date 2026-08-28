@@ -12,10 +12,23 @@ struct RunsView: View {
 
     var body: some View {
         HSplitView {
-            List(model.recentRuns, selection: $selection) { run in
-                RunRow(run: run, sourceName: model.sourceNames[run.sourceID] ?? "removed source")
+            VStack(spacing: 0) {
+                PageHeader(title: t("History"),
+                           subtitle: t("Every collection, and what it found.")) { }
+                if model.recentRuns.isEmpty {
+                    FirstStep(symbol: "clock.arrow.circlepath",
+                              title: t("Nothing has run yet"),
+                              message: t("Once you collect from a supplier, every attempt is recorded here — what it found, how long it took, and the log if it went wrong."))
+                } else {
+                    List(model.recentRuns, selection: $selection) { run in
+                        RunRow(run: run,
+                               manifest: model.manifest(forSourceID: run.sourceID),
+                               sourceName: model.sourceNames[run.sourceID] ?? t("Removed source"))
+                    }
+                    .listStyle(.inset)
+                }
             }
-            .frame(minWidth: 320)
+            .frame(minWidth: 340)
 
             VStack(alignment: .leading, spacing: 0) {
                 if let run = selected {
@@ -30,7 +43,7 @@ struct RunsView: View {
             }
             .frame(minWidth: 420)
         }
-        .navigationTitle(t("Runs"))
+        .navigationTitle("")
         .onChange(of: selection) { _, _ in loadLogs() }
     }
 
@@ -130,24 +143,29 @@ struct RunsView: View {
 
 private struct RunRow: View {
     let run: Run
+    let manifest: PluginManifest?
     let sourceName: String
 
     var body: some View {
-        HStack {
-            Circle()
-                .fill(run.status.countsAsSuccess ? Color.green :
-                        (run.status == .needsSignIn ? .blue : .orange))
-                .frame(width: 8, height: 8)
+        HStack(spacing: 10) {
+            SupplierTile(manifest: manifest, fallbackName: sourceName, size: 26)
             VStack(alignment: .leading, spacing: 2) {
                 Text(sourceName).font(.callout)
                 Text(run.startedAt.formatted(date: .abbreviated, time: .shortened))
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Spacer()
+            Spacer(minLength: 6)
             if run.documentsNew > 0 {
-                Text(verbatim: "+\(number(run.documentsNew))").font(.caption.monospacedDigit()).foregroundStyle(.green)
+                Text(verbatim: "+\(number(run.documentsNew))")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.green)
             }
+            Image(systemName: run.status.countsAsSuccess ? "checkmark.circle.fill"
+                            : (run.status == .needsSignIn ? "person.badge.key.fill"
+                                                          : "exclamationmark.circle.fill"))
+                .foregroundStyle(run.status.countsAsSuccess ? Color.green
+                               : (run.status == .needsSignIn ? .blue : .orange))
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
     }
 }

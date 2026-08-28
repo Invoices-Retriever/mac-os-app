@@ -4,11 +4,13 @@ import IRCore
 @main
 struct InvoicesRetrieverApp: App {
     @State private var model = AppModel()
+    @State private var logos = LogoStore()
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(model)
+                .environment(logos)
                 // Strings are resolved when a view body runs, not by SwiftUI's
                 // own LocalizedStringKey machinery, so changing language has to
                 // rebuild the tree rather than merely invalidate it.
@@ -41,6 +43,7 @@ struct InvoicesRetrieverApp: App {
         Settings {
             SettingsView()
                 .environment(model)
+                .environment(logos)
                 .id(model.languageRevision)
                 .frame(width: 640, height: 560)
         }

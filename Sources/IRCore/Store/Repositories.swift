@@ -306,6 +306,16 @@ public struct Store: Sendable {
         try await database.run("DELETE FROM document WHERE id = ?", [SQLValue(id)])
     }
 
+    /// How many documents exist at all, ignoring every filter.
+    ///
+    /// The interface needs this to tell two empty screens apart: a library with
+    /// nothing in it yet, which needs a first step, and a filter that happens
+    /// to match nothing, which needs widening. Counting in SQL rather than
+    /// fetching every row to call `.count` on it.
+    public func totalDocumentCount() async throws -> Int {
+        try await database.query("SELECT COUNT(*) AS n FROM document").first?.int("n") ?? 0
+    }
+
     public func documentCount(sourceID: UUID) async throws -> Int {
         try await database.query("SELECT COUNT(*) AS n FROM document WHERE source_id = ?", [SQLValue(sourceID)])
             .first?.int("n") ?? 0

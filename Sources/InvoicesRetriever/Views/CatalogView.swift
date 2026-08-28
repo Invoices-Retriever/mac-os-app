@@ -33,6 +33,18 @@ struct CatalogView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            PageHeader(title: t("Catalogue"),
+                       subtitle: t("Pick a supplier and Invoices Retriever learns how to fetch its invoices.")) {
+                Button {
+                    Task { await model.refreshCatalogue() }
+                } label: {
+                    Label(t("Refresh"), systemImage: "arrow.triangle.2.circlepath")
+                }
+                .controlSize(.large)
+                .disabled(model.isRefreshingCatalogue)
+                .help(t("Download the latest plugins from the project's signed index. Nothing is installed unless the signature checks out."))
+            }
+
             HStack {
                 Picker(t("Country"), selection: $country) {
                     Text(t("Everywhere")).tag(String?.none)
@@ -46,9 +58,7 @@ struct CatalogView: View {
                 Text(tn("%d plugins", entries.count))
                     .font(.callout).foregroundStyle(.secondary)
             }
-            .padding(.horizontal).padding(.vertical, 8)
-
-            Divider()
+            .padding(.horizontal, 20).padding(.bottom, 10)
 
             if entries.isEmpty {
                 ContentUnavailableView {
@@ -68,27 +78,19 @@ struct CatalogView: View {
                 }
             } else {
                 ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 14)], spacing: 14) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 268), spacing: 14)], spacing: 14) {
                         ForEach(entries) { entry in
                             CatalogCard(entry: entry) { adding = entry }
                         }
                     }
-                    .padding()
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
                 }
             }
         }
         .searchable(text: $search, prompt: t("Search suppliers"))
-        .navigationTitle(t("Catalogue"))
+        .navigationTitle("")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    Task { await model.refreshCatalogue() }
-                } label: {
-                    Label(t("Refresh from the index"), systemImage: "arrow.triangle.2.circlepath")
-                }
-                .disabled(model.isRefreshingCatalogue)
-                .help(t("Download the latest plugins from the project's signed index. Nothing is installed unless the signature checks out."))
-            }
             ToolbarItem {
                 Button {
                     isImporting = true
@@ -113,56 +115,79 @@ private struct CatalogCard: View {
     let entry: PluginCatalog.Entry
     let add: () -> Void
 
+    @State private var hovering = false
+
+    private var manifest: PluginManifest { entry.manifest }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(entry.manifest.name).font(.headline)
-                Spacer()
-                ForEach(entry.manifest.country ?? [], id: \.self) { code in
-                    Text(code)
-                        .font(.caption2.weight(.medium))
-                        .padding(.horizontal, 5).padding(.vertical, 1)
-                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 4))
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                SupplierTile(manifest: manifest, size: 48)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(manifest.name)
+                        .font(.headline)
+                        .lineLimit(1)
+                    if let countries = manifest.country, !countries.isEmpty {
+                        Text(countries.joined(separator: " · "))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
+                Spacer(minLength: 0)
             }
 
-            Text(entry.manifest.description ?? "No description.")
+            Text(manifest.description ?? t("No description."))
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .lineLimit(3)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, minHeight: 52, alignment: .topLeading)
 
             HStack(spacing: 6) {
-                if entry.manifest.effectiveStatus == .unverified {
-                    Badge(text: t("Not tested"), colour: .yellow, symbol: "questionmark.circle")
+                ForEach(badges, id: \.text) { badge in
+                    Pill(text: badge.text, colour: badge.colour, symbol: badge.symbol)
                 }
-                if entry.manifest.effectiveStatus == .degraded {
-                    Badge(text: t("Degraded"), colour: .orange, symbol: "exclamationmark.triangle")
-                }
-                // F10.8: the badge is derived from the steps, not from what the
-                // manifest claims about itself.
-                if entry.manifest.containsArbitraryJavaScript {
-                    Badge(text: t("Runs JavaScript"), colour: .purple, symbol: "curlybraces")
-                }
-                // Two entries for the same supplier are common now — one
-                // driving the portal, one calling the API — and this is the
-                // difference that decides which one someone wants.
-                if entry.manifest.isAPIOnly {
-                    Badge(text: t("API, no browser"), colour: .green, symbol: "key.horizontal")
-                }
-                if entry.provenance == .local {
-                    Badge(text: t("Local copy"), colour: .blue, symbol: "hammer")
-                } else if entry.provenance == .sideloaded {
-                    Badge(text: t("Unofficial"), colour: .orange, symbol: "questionmark.circle")
-                }
-                Spacer()
-                Button(t("Add"), action: add)
+                Spacer(minLength: 0)
             }
+
+            Button(action: add) {
+                Text(t("Add"))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.quaternary))
+        .card(highlighted: hovering)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: hovering)
+    }
+
+    /// Only the things that change a decision. A plugin that is official,
+    /// tested and browser-driven is the unremarkable case and gets no badge —
+    /// if every card carries three, none of them is read.
+    private var badges: [(text: String, colour: Color, symbol: String)] {
+        var out: [(String, Color, String)] = []
+        // Two entries for the same supplier are common now — one driving the
+        // portal, one calling the API — and this is the difference that decides
+        // which one someone wants.
+        if manifest.isAPIOnly {
+            out.append((t("No browser"), .green, "key.horizontal.fill"))
+        }
+        switch manifest.effectiveStatus {
+        case .unverified: out.append((t("Not tested"), .orange, "questionmark.circle.fill"))
+        case .degraded: out.append((t("Degraded"), .red, "exclamationmark.triangle.fill"))
+        default: break
+        }
+        // F10.8: derived from the steps, not from what the manifest claims.
+        if manifest.containsArbitraryJavaScript {
+            out.append((t("Runs JavaScript"), .purple, "curlybraces"))
+        }
+        switch entry.provenance {
+        case .local: out.append((t("Local copy"), .blue, "hammer.fill"))
+        case .sideloaded: out.append((t("Unofficial"), .orange, "questionmark.circle.fill"))
+        default: break
+        }
+        return out.map { (text: $0.0, colour: $0.1, symbol: $0.2) }
     }
 }
 

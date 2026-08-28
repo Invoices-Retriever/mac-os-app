@@ -42,6 +42,26 @@ struct AddSourceSheet: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
 
+                Section {
+                    // The supplier, shown as itself. Someone halfway through
+                    // adding three portals needs to know which one this sheet
+                    // is about without re-reading the title.
+                    HStack(spacing: 14) {
+                        SupplierTile(manifest: manifest, size: 52)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(manifest.name).font(.title3.bold())
+                            if let description = manifest.description {
+                                Text(description)
+                                    .font(.callout)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.vertical, 4)
+                }
+
                 Section(t("What this plugin can do")) {
                     Label(entry.capabilitySummary, systemImage: "network.badge.shield.half.filled")
                         .font(.callout)

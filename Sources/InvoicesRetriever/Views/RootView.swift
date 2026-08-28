@@ -3,33 +3,15 @@ import IRCore
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
+    @Environment(LogoStore.self) private var logos
     /// Optional, because that is what a `List` selection binding is. A
-    /// non-optional one silently never updates.
-    @State private var selection: Section? = .sources
-
-    enum Section: String, CaseIterable, Identifiable {
-        case sources, library, catalog, runs, developer
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .sources: return t("Sources")
-            case .library: return t("Library")
-            case .catalog: return t("Catalogue")
-            case .runs: return t("Runs")
-            case .developer: return t("Plugin developer")
-            }
-        }
-
-        var symbol: String {
-            switch self {
-            case .sources: return "building.2"
-            case .library: return "tray.full"
-            case .catalog: return "square.grid.2x2"
-            case .runs: return "clock.arrow.circlepath"
-            case .developer: return "hammer"
-            }
-        }
+    /// non-optional one silently never updates. The chosen section lives in
+    /// the model rather than here, so an empty screen can send the user to the
+    /// one that fixes it — "Browse the catalogue" from an empty supplier list
+    /// is the whole first-run path.
+    private var selection: Binding<RootSection?> {
+        Binding(get: { model.selectedSection },
+                set: { model.selectedSection = $0 ?? .sources })
     }
 
     var body: some View {
@@ -38,7 +20,7 @@ struct RootView: View {
             // NavigationLink: inside a split view that pushes onto a navigation
             // stack the detail column does not read, so the sidebar highlights
             // nothing and clicking changes nothing.
-            List(Section.allCases, selection: $selection) { section in
+            List(RootSection.allCases, selection: selection) { section in
                 Label(section.title, systemImage: section.symbol)
                     .badge(badge(for: section))
                     .tag(section)
@@ -49,7 +31,7 @@ struct RootView: View {
             .listStyle(.sidebar)
         } detail: {
             Group {
-                switch selection ?? .sources {
+                switch model.selectedSection {
                 case .sources: SourcesView()
                 case .library: LibraryView()
                 case .catalog: CatalogView()
@@ -58,6 +40,14 @@ struct RootView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        // Logos are fetched for the whole catalogue at once, keyed on it, so
+        // the requests are identical for every user and say nothing about which
+        // suppliers this one has. See LogoStore.
+        .task(id: model.catalogEntries.count) {
+            logos.isEnabled = model.preferences.showSupplierLogos
+            await logos.prefetch(model.catalogueLogoDomains)
+            logos.persist()
         }
         .overlay {
             if model.isLoading {
@@ -70,7 +60,7 @@ struct RootView: View {
 
     /// Only counts that mean "you need to do something" get a badge. A badge
     /// showing how many documents exist would be noise.
-    private func badge(for section: Section) -> Int {
+    private func badge(for section: RootSection) -> Int {
         switch section {
         case .sources: return model.sources.filter(\.needsAttention).count
         case .library: return model.documents.filter(\.needsReview).count

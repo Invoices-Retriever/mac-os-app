@@ -70,36 +70,39 @@ struct LibraryView: View {
     var body: some View {
         HSplitView {
             VStack(spacing: 0) {
+                PageHeader(title: t("Invoices"), subtitle: summaryLine) {
+                    Button { exporting = true } label: {
+                        Label(t("Export…"), systemImage: "square.and.arrow.up")
+                    }
+                    .controlSize(.large)
+                    .disabled(model.documents.isEmpty)
+                }
                 filters
                 Divider()
-                table
-                Divider()
-                summary
+                if model.documents.isEmpty {
+                    emptyState
+                } else {
+                    table
+                }
             }
-            .frame(minWidth: 520)
+            .frame(minWidth: 520, maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
             if let selected {
                 DocumentDetailView(document: selected, previewURL: $previewURL)
                     .frame(minWidth: 320, idealWidth: 380)
-            } else {
+            } else if !model.documents.isEmpty {
                 Text(t("Select a document"))
                     .foregroundStyle(.secondary)
-                    .frame(minWidth: 320)
+                    .frame(minWidth: 320, maxHeight: .infinity)
             }
         }
-        .navigationTitle(t("Library"))
+        .navigationTitle("")
         .searchable(text: $search, prompt: t("Search issuer, number or text"))
         .onChange(of: search) { _, _ in applyFilter() }
         .onChange(of: period) { _, _ in applyFilter() }
         .onChange(of: showingReviewOnly) { _, _ in applyFilter() }
         .quickLookPreview($previewURL)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button { exporting = true } label: {
-                    Label(t("Export…"), systemImage: "square.and.arrow.up")
-                }
-                .disabled(model.documents.isEmpty)
-            }
             ToolbarItem {
                 Button { importFiles() } label: {
                     Label(t("Import PDFs…"), systemImage: "plus")
@@ -126,7 +129,7 @@ struct LibraryView: View {
             Button(t("Rescan folder")) { Task { await model.rescanLibrary() } }
                 .help(t("Rebuild the index from the files on disk"))
         }
-        .padding(.horizontal).padding(.vertical, 8)
+        .padding(.horizontal, 20).padding(.bottom, 10)
     }
 
     private var table: some View {
@@ -138,7 +141,10 @@ struct LibraryView: View {
             .width(90)
 
             TableColumn(t("Issuer")) { document in
-                HStack(spacing: 5) {
+                HStack(spacing: 6) {
+                    SupplierTile(manifest: model.manifest(forSourceID: document.sourceID),
+                                 fallbackName: document.issuer ?? "",
+                                 size: 18)
                     Text(document.issuer ?? "—")
                     if document.needsReview {
                         Image(systemName: "questionmark.circle")
@@ -168,17 +174,42 @@ struct LibraryView: View {
         .tableStyle(.inset)
     }
 
-    private var summary: some View {
-        HStack {
-            Text(tn("%d documents", model.documents.count))
-            if let total {
-                Text(t("· total %@", total.formatted())).monospacedDigit()
+    /// The count and, when every document shares a currency, what they add up
+    /// to — which is the number someone actually came here for.
+    private var summaryLine: String {
+        let count = tn("%d document", model.documents.count)
+        guard let total else { return count }
+        return "\(count) · \(total.formatted())"
+    }
+
+    /// Two different nothings, and telling them apart is the whole point: an
+    /// empty library needs a first step, an empty filter needs the filter
+    /// widened.
+    @ViewBuilder
+    private var emptyState: some View {
+        if isFiltered {
+            FirstStep(symbol: "line.3.horizontal.decrease.circle",
+                      title: t("Nothing matches"),
+                      message: t("No document matches this period or search. Try “Everything”, or clear the search field."),
+                      actionTitle: t("Show everything")) {
+                period = .everything
+                search = ""
+                showingReviewOnly = false
             }
-            Spacer()
+        } else {
+            FirstStep(symbol: "doc.text",
+                      title: t("No invoices yet"),
+                      message: t("Collected invoices land here, filed into your library folder. You can also drop in PDFs you already have."),
+                      actionTitle: t("Import PDFs…"),
+                      action: importFiles)
         }
-        .font(.callout)
-        .foregroundStyle(.secondary)
-        .padding(.horizontal).padding(.vertical, 6)
+    }
+
+    /// A filter is only "the reason you see nothing" when there is something
+    /// to filter. With an empty library, widening the period would find the
+    /// same nothing, and offering it would send the user in a circle.
+    private var isFiltered: Bool {
+        model.totalDocumentCount > 0
     }
 
     private func applyFilter() {

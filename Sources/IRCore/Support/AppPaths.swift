@@ -29,9 +29,11 @@ public struct AppPaths: Sendable {
     public var databaseURL: URL { supportDirectory.appendingPathComponent("index.sqlite") }
     public var installedPluginsDirectory: URL { supportDirectory.appendingPathComponent("plugins", isDirectory: true) }
     public var logsDirectory: URL { supportDirectory.appendingPathComponent("logs", isDirectory: true) }
+    public var logosDirectory: URL { supportDirectory.appendingPathComponent("logos", isDirectory: true) }
 
     public func ensureDirectoriesExist() throws {
-        for url in [supportDirectory, installedPluginsDirectory, logsDirectory, libraryRoot] {
+        for url in [supportDirectory, installedPluginsDirectory, logsDirectory,
+                    logosDirectory, libraryRoot] {
             try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         }
     }
@@ -54,11 +56,17 @@ public struct Preferences: Codable, Sendable, Hashable {
     public var interfaceLanguage: String?
     public var pluginIndexURL: String
     public var lastIndexRevision: Int
+    /// Fetch suppliers' logos from a public logo service. On by default — an
+    /// interface where every source is a grey square is markedly harder to
+    /// scan — and switchable, because it is the one thing in the application
+    /// that talks to a third party at all.
+    public var showSupplierLogos: Bool
 
     public init(libraryPath: String?, fileNamePattern: String, folderPattern: String,
                 maximumConcurrency: Int, schedulerEnabled: Bool, enableOCR: Bool,
                 enableLLMFallback: Bool, llmProvider: String?, interfaceLanguage: String?,
-                pluginIndexURL: String, lastIndexRevision: Int) {
+                pluginIndexURL: String, lastIndexRevision: Int,
+                showSupplierLogos: Bool = true) {
         self.libraryPath = libraryPath
         self.fileNamePattern = fileNamePattern
         self.folderPattern = folderPattern
@@ -70,6 +78,7 @@ public struct Preferences: Codable, Sendable, Hashable {
         self.interfaceLanguage = interfaceLanguage
         self.pluginIndexURL = pluginIndexURL
         self.lastIndexRevision = lastIndexRevision
+        self.showSupplierLogos = showSupplierLogos
     }
 
     public static let `default` = Preferences(
@@ -91,7 +100,8 @@ public struct Preferences: Codable, Sendable, Hashable {
         // For an index whose job includes withdrawing a compromised plugin,
         // "eventually" is not good enough.
         pluginIndexURL: Preferences.defaultIndexURL,
-        lastIndexRevision: 0)
+        lastIndexRevision: 0,
+        showSupplierLogos: true)
 
     public static let settingKey = "preferences"
 
@@ -129,12 +139,13 @@ public struct Preferences: Codable, Sendable, Hashable {
         interfaceLanguage = try c.decodeIfPresent(String.self, forKey: .interfaceLanguage)
         pluginIndexURL = try c.decodeIfPresent(String.self, forKey: .pluginIndexURL) ?? fallback.pluginIndexURL
         lastIndexRevision = try c.decodeIfPresent(Int.self, forKey: .lastIndexRevision) ?? fallback.lastIndexRevision
+        showSupplierLogos = try c.decodeIfPresent(Bool.self, forKey: .showSupplierLogos) ?? fallback.showSupplierLogos
     }
 
     private enum CodingKeys: String, CodingKey {
         case libraryPath, fileNamePattern, folderPattern, maximumConcurrency
         case schedulerEnabled, enableOCR, enableLLMFallback, llmProvider
-        case interfaceLanguage, pluginIndexURL, lastIndexRevision
+        case interfaceLanguage, pluginIndexURL, lastIndexRevision, showSupplierLogos
     }
 
     public static func load(from store: Store) async -> Preferences {
