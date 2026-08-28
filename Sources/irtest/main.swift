@@ -231,6 +231,7 @@ await runInterfaceCatalogueSuites()
 await runPluginSuites()
 await runIndexUpdaterSuites()
 await runEngineSuites()
+await runRecorderSuites()
 await runStorageSuites()
 
 report()

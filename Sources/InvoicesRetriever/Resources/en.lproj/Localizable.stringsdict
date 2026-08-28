@@ -307,5 +307,37 @@
 			<string>Every one of the %d selected documents will be sent.</string>
 		</dict>
 	</dict>
+	<key>%d step</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d step</string>
+			<key>other</key>
+			<string>%d steps</string>
+		</dict>
+	</dict>
+	<key>%d row</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d row</string>
+			<key>other</key>
+			<string>%d rows</string>
+		</dict>
+	</dict>
 </dict>
 </plist>

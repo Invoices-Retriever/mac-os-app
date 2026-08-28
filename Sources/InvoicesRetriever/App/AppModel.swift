@@ -435,6 +435,71 @@ final class AppModel {
 
     var isRefreshingCatalogue = false
 
+    // MARK: - Plugin recorder
+
+    var isRecording = false
+    var recorderEvents: [PluginRecorder.Event] = []
+    var recorderAnalysis: PluginRecorder.PageAnalysis?
+    var recorderDraft: PluginRecorder.Draft?
+    private var recorder: PluginRecorder?
+    private var recordingSession: RecordingSession?
+    private var recordingIdentity: (id: String, name: String, countries: [String]) = ("", "", [])
+    private var recorderPoll: Task<Void, Never>?
+
+    func startRecording(at url: URL, id: String, name: String, countries: [String]) async {
+        let recorder = PluginRecorder()
+        self.recorder = recorder
+        self.recordingIdentity = (id, name, countries)
+        recorderEvents = []
+        recorderAnalysis = nil
+        recorderDraft = nil
+
+        let session = RecordingSession(recorder: recorder)
+        recordingSession = session
+        session.start(at: url)
+        isRecording = true
+
+        // The recording window is the user's; this only mirrors what it saw so
+        // the list beside it stays live.
+        recorderPoll = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(600))
+                let events = await recorder.recordedEvents
+                await MainActor.run { self?.recorderEvents = events }
+            }
+        }
+    }
+
+    func analyseRecordedPage() async {
+        guard let session = recordingSession, let recorder else { return }
+        do {
+            recorderAnalysis = try await session.analyseCurrentPage()
+            recorderEvents = await recorder.recordedEvents
+            recorderDraft = await recorder.makeDraft(
+                id: recordingIdentity.id,
+                name: recordingIdentity.name,
+                countries: recordingIdentity.countries)
+        } catch {
+            alert = AlertContent(title: t("Could not analyse the page"),
+                                 message: error.localizedDescription)
+        }
+    }
+
+    /// Back to watching, keeping everything recorded so far — for a portal
+    /// where the invoices are spread over more than one page.
+    func resumeRecording() async {
+        recorderDraft = nil
+    }
+
+    func stopRecording() async {
+        recorderPoll?.cancel()
+        recorderPoll = nil
+        recordingSession?.stop()
+        recordingSession = nil
+        recorder = nil
+        isRecording = false
+    }
+
     /// F10.2. The catalogue updates without reinstalling the application, and
     /// the index it reads is signature-verified before anything is written to
     /// disk — see `PluginIndexUpdater`.

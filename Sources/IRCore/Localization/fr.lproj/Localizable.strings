@@ -65,3 +65,20 @@
 
 /* --- Divers ------------------------------------------------------------- */
 "My business" = "Mon entreprise";
+
+/* --- Plugin recorder --- */
+"Went to %@" = "Allé sur %@";
+"Clicked %@" = "Cliqué sur %@";
+"Typed into %@" = "Saisi dans %@";
+"Where the recording started" = "Point de départ de l'enregistrement";
+"Only a signed-in customer sees the invoice list" = "Seul un client connecté voit la liste des factures";
+"Recorded from a live session. Not yet run end to end." = "Enregistré depuis une session réelle. Pas encore exécuté de bout en bout.";
+"%1$@: %2$@" = "%1$@ : %2$@";
+"checkAuth falls back to matching the address. Replace it with an element only a signed-in customer sees — it is what tells the app your session expired." = "checkAuth se rabat sur l'adresse. Remplacez-le par un élément que seul un client connecté voit — c'est ce qui indique à l'app que votre session a expiré.";
+"No column looked like a date. A document needs one — point the 'date' field at the right cell." = "Aucune colonne ne ressemble à une date. Un document en exige une — pointez le champ « date » vers la bonne cellule.";
+"No column looked like an amount. Without it the app falls back to reading the PDF." = "Aucune colonne ne ressemble à un montant. Sans lui, l'app se rabat sur la lecture du PDF.";
+"The link in a row does not obviously point at a PDF, so the draft clicks it and waits for a download. Check what actually happens." = "Le lien d'une ligne ne pointe pas clairement vers un PDF ; le brouillon clique dessus et attend un téléchargement. Vérifiez ce qui se passe réellement.";
+"No download link was found in a row, so the draft prints the page to PDF. If the portal has a real PDF somewhere, use that instead." = "Aucun lien de téléchargement trouvé dans une ligne ; le brouillon imprime la page en PDF. Si le portail expose un vrai PDF, utilisez-le.";
+"No column looked like an invoice number, so the date is standing in as the document id. An id has to be stable and unique or the same invoice arrives every month — check this one first." = "Aucune colonne ne ressemble à un numéro de facture ; la date sert donc d'identifiant. Un identifiant doit être stable et unique, sinon la même facture revient chaque mois — vérifiez celui-ci en premier.";
+"No invoice table was recognised on the page. Navigate to the billing history and analyse again, or write getDocuments by hand." = "Aucun tableau de factures reconnu sur la page. Allez sur l'historique de facturation et relancez l'analyse, ou écrivez getDocuments à la main.";
+"No sign-in was recorded, so the plugin asks the user for nothing and relies on them signing in by hand. That works, but it is worth recording the login once." = "Aucune connexion enregistrée : le plugin ne demande rien et compte sur une connexion manuelle. Cela fonctionne, mais enregistrer la connexion une fois vaut le détour.";

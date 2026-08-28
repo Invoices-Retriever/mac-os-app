@@ -14,6 +14,7 @@ struct DeveloperView: View {
     @State private var folders: [URL] = []
     @State private var reports: [(name: String, report: PluginValidator.Report)] = []
     @State private var selectedIssue: PluginValidator.Issue?
+    @State private var isRecording = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -26,7 +27,11 @@ struct DeveloperView: View {
                 } description: {
                     Text(t("Choose the folder where you are editing plugin JSON files. They are loaded ahead of the shipped versions, so you can iterate on an existing plugin without uninstalling anything."))
                 } actions: {
-                    Button(t("Choose a folder…")) { chooseFolder() }
+                    HStack {
+                        Button(t("Record a plugin…")) { isRecording = true }
+                            .buttonStyle(.borderedProminent)
+                        Button(t("Choose a folder…")) { chooseFolder() }
+                    }
                 }
             } else {
                 List {
@@ -55,6 +60,9 @@ struct DeveloperView: View {
         }
         .navigationTitle(t("Plugin developer"))
         .task { await refresh() }
+        .sheet(isPresented: $isRecording) {
+            RecorderView().environment(model)
+        }
     }
 
     private var header: some View {
@@ -69,6 +77,12 @@ struct DeveloperView: View {
                 }
             }
             Spacer()
+            Button {
+                isRecording = true
+            } label: {
+                Label(t("Record a plugin…"), systemImage: "record.circle")
+            }
+            .help(t("Fetch an invoice by hand and let the app write the plugin from what you did."))
             Button(t("Add folder…")) { chooseFolder() }
             Button(t("Reload")) { Task { await refresh() } }
                 .keyboardShortcut("r", modifiers: [.command, .shift])

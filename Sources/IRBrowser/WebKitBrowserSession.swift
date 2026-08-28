@@ -226,8 +226,13 @@ public final class WebKitBrowserSession: NSObject, BrowserSession {
                 && (settledSince.map { Date().timeIntervalSince($0) > 1.5 } ?? false)
                 && !webView.isLoading
 
-            // Backstop, in case signing in never changes the address.
-            let overdue = Date().timeIntervalSince(lastFullCheck) > 25
+            // The backstop exists for a portal that signs you in without
+            // changing the address, and it must stay rare and never fire while
+            // the person is still on the page they started on: the check
+            // navigates, and navigating away from a half-filled login form is
+            // the bug this whole method exists to avoid. Three minutes, and
+            // only once they have moved.
+            let overdue = now != origin && Date().timeIntervalSince(lastFullCheck) > 180
 
             guard arrivedSomewhereNew || overdue else { continue }
 

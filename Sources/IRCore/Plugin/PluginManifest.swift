@@ -39,6 +39,17 @@ public struct PluginManifest: Codable, Sendable, Identifiable, Hashable {
         case checkAuth, startAuth, getConfigOptions, getDocuments
     }
 
+    public init(id: String, name: String, version: String, engine: String,
+                allowedDomains: [String], checkAuth: [PluginStep], getDocuments: [PluginStep]) {
+        self.id = id
+        self.name = name
+        self.version = version
+        self.engine = engine
+        self.allowedDomains = allowedDomains
+        self.checkAuth = checkAuth
+        self.getDocuments = getDocuments
+    }
+
     public var semanticVersion: SemVer { SemVer(version) ?? SemVer(0, 0, 0) }
     public var domainPolicy: DomainPolicy { DomainPolicy(allowedDomains: allowedDomains) }
     public var effectiveStatus: PluginStatus { status ?? .active }
