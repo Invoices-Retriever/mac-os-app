@@ -181,15 +181,63 @@ public final class WebKitBrowserSession: NSObject, BrowserSession {
                                    milliseconds: Int(timeout.seconds * 1000))
     }
 
+    /// Waits for the person to finish signing in, without touching the page
+    /// they are signing in on.
+    ///
+    /// The obvious implementation — poll `isSignedIn` every couple of seconds —
+    /// is unusable, and it took someone trying it to see why: `checkAuth`
+    /// begins by navigating, so polling it reloads the login form out from
+    /// under the user every two seconds. The window flickers and no password
+    /// can ever be typed.
+    ///
+    /// So the loop watches the URL instead, which costs nothing and changes
+    /// nothing, and only pays for the real check once the page has settled
+    /// somewhere other than where the sign-in started. A slow periodic check
+    /// remains as a backstop for a portal that signs you in without changing
+    /// the address.
     public func waitForUserSignIn(until deadline: Date,
                                   isSignedIn: @Sendable () async -> Bool) async -> Bool {
         await setVisible(true)
+
+        /// Origin and path only: a login page rewrites its query string
+        /// constantly, and that is not the user going anywhere.
+        func landmark(_ url: URL?) -> String {
+            guard let url else { return "" }
+            return (url.host ?? "") + url.path
+        }
+
+        let origin = landmark(webView.url)
+        var settledSince: Date?
+        var lastLandmark = origin
+        var lastFullCheck = Date()
+
         while Date() < deadline {
+            try? await Task.sleep(for: .milliseconds(700))
+
+            let now = landmark(webView.url)
+            if now != lastLandmark {
+                lastLandmark = now
+                settledSince = Date()
+                continue
+            }
+
+            // Somewhere new, and it stopped moving: worth asking properly.
+            let arrivedSomewhereNew = now != origin
+                && (settledSince.map { Date().timeIntervalSince($0) > 1.5 } ?? false)
+                && !webView.isLoading
+
+            // Backstop, in case signing in never changes the address.
+            let overdue = Date().timeIntervalSince(lastFullCheck) > 25
+
+            guard arrivedSomewhereNew || overdue else { continue }
+
+            lastFullCheck = Date()
+            settledSince = nil
             if await isSignedIn() { return true }
-            // Two seconds: often enough that the window closes promptly once
-            // the user is through, rarely enough that we are not hammering the
-            // portal with checkAuth navigations while they type.
-            try? await Task.sleep(for: .seconds(2))
+
+            // The check navigated; treat wherever it left us as the new origin
+            // so the next change is measured from here.
+            lastLandmark = landmark(webView.url)
         }
         return false
     }
