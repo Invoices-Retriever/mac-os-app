@@ -142,8 +142,28 @@ public final class WebKitBrowserSession: NSObject, BrowserSession {
         try await waitForNavigation(timeout: .seconds(45))
     }
 
+    /// Waits for a navigation to finish — including one that has not started
+    /// yet.
+    ///
+    /// A click that submits a form does not begin loading in the same turn of
+    /// the run loop, so checking `isLoading` immediately after it is always
+    /// false and this returned at once. Every plugin using the standard login
+    /// shape — type, click, waitForNavigation — then evaluated its next step
+    /// against the page it had just left. On OVHcloud that meant testing for
+    /// the two-factor field while still looking at the login form, concluding
+    /// there was none, and handing over a second before the prompt appeared.
+    ///
+    /// So: give a click a moment to turn into a navigation, and only conclude
+    /// that nothing is happening once that moment has passed. A step that waits
+    /// for a navigation which never comes returns quietly rather than failing,
+    /// because plugins put it after clicks that may or may not navigate.
     public func waitForNavigation(timeout: Duration) async throws {
+        let grace = Date().addingTimeInterval(min(1.5, timeout.seconds))
+        while !isLoading && !webView.isLoading && Date() < grace {
+            try await Task.sleep(for: .milliseconds(50))
+        }
         if !isLoading && !webView.isLoading { return }
+
         let id = UUID()
         let timeoutTask = Task { [weak self] in
             try? await Task.sleep(for: timeout)
