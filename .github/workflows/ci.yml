@@ -101,6 +101,14 @@ jobs:
           fi
           echo "✓ all output goes through the redacting logger"
 
+      - name: The test suite must build in release
+        run: |
+          if grep -rn "@testable" Sources/; then
+            echo "::error::@testable forces -enable-testing, which a release build does not set, so this breaks CI and not your machine. Make the symbol public instead — if a test needs it, it is probably part of the contract."
+            exit 1
+          fi
+          echo "✓ no @testable"
+
       - name: No third-party dependencies
         run: |
           if grep -q "dependencies: \[$" Package.swift && grep -q "\.package(" Package.swift; then

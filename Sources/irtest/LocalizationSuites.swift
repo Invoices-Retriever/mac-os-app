@@ -1,5 +1,5 @@
 import Foundation
-@testable import IRCore
+import IRCore
 
 /// A missing translation is invisible until a French user sees an English
 /// sentence in the middle of a French screen, so the catalogues are checked
@@ -19,14 +19,14 @@ func runLocalizationSuites() async {
             // CFBundleLocalizations in its Info.plist, so that property is
             // empty even though the .lproj folders are right there.
             for language in ["en", "fr"] {
-                expect(Bundle.module.path(forResource: language, ofType: "lproj") != nil,
+                expect(BundledResources.bundle.path(forResource: language, ofType: "lproj") != nil,
                        "the \(language) catalogue is missing from the bundle")
             }
         }
 
         await test("Every English key has a French translation, and vice versa") {
             func keys(_ language: String) -> Set<String> {
-                guard let path = Bundle.module.path(forResource: language, ofType: "lproj"),
+                guard let path = BundledResources.bundle.path(forResource: language, ofType: "lproj"),
                       let file = Bundle(path: path)?.path(forResource: "Localizable", ofType: "strings"),
                       let table = NSDictionary(contentsOfFile: file) as? [String: String] else {
                     return []
@@ -45,7 +45,7 @@ func runLocalizationSuites() async {
 
         await test("Format specifiers match between the two languages") {
             func table(_ language: String) -> [String: String] {
-                guard let path = Bundle.module.path(forResource: language, ofType: "lproj"),
+                guard let path = BundledResources.bundle.path(forResource: language, ofType: "lproj"),
                       let file = Bundle(path: path)?.path(forResource: "Localizable", ofType: "strings"),
                       let loaded = NSDictionary(contentsOfFile: file) as? [String: String] else { return [:] }
                 return loaded
@@ -96,7 +96,7 @@ func runLocalizationSuites() async {
         }
 
         await test("An unknown key falls back to itself, so nothing shows an identifier") {
-            expectEqual(Localization.string("This key does not exist anywhere", in: .module),
+            expectEqual(Localization.string("This key does not exist anywhere", in: BundledResources.bundle),
                         "This key does not exist anywhere")
         }
 

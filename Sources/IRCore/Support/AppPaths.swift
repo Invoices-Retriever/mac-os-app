@@ -147,6 +147,11 @@ public struct Preferences: Codable, Sendable, Hashable {
 /// Resources compiled into IRCore: the JSON Schema contributors validate
 /// against, and the plugins that ship with a release.
 public enum BundledResources {
+    /// IRCore's own resource bundle. `Bundle.module` is internal to the module
+    /// that owns it, so anything outside — the test suite checking the string
+    /// catalogues, for one — needs this door.
+    public static var bundle: Bundle { .module }
+
     public static var schemaURL: URL? {
         Bundle.module.url(forResource: "Resources/plugin-v1.schema", withExtension: "json")
             ?? Bundle.module.url(forResource: "plugin-v1.schema", withExtension: "json")
