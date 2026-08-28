@@ -1718,3 +1718,52 @@ func runUserAgentSuites() async {
         }
     }
 }
+
+/// The recorder's page analysis, and what it does when it finds nothing.
+@MainActor
+func runRecorderAnalysisSuites() async {
+
+    func analysis(found: Bool, rows: Int? = nil, groups: Int? = nil,
+                  frame: String? = nil) -> PluginRecorder.PageAnalysis {
+        PluginRecorder.PageAnalysis(
+            found: found, url: "https://portal.example.com/billing",
+            title: "Billing", rowSelector: found ? "tr.invoice" : nil,
+            rowCount: rows, columns: found ? [] : nil, link: nil,
+            repeatingGroups: groups, financialGroups: found ? 1 : 0,
+            frameURL: frame)
+    }
+
+    await suite("Recorder analysis") {
+
+        await test("A frame that found a table beats the shell that did not") {
+            expect(PluginRecordingComparison.isBetter(analysis(found: true, rows: 11),
+                                                      than: analysis(found: false, groups: 4)))
+            expect(!PluginRecordingComparison.isBetter(analysis(found: false, groups: 40),
+                                                       than: analysis(found: true, rows: 2)))
+        }
+
+        await test("Between two tables, the longer one wins") {
+            expect(PluginRecordingComparison.isBetter(analysis(found: true, rows: 11),
+                                                      than: analysis(found: true, rows: 3)))
+        }
+
+        await test("Between two failures, the one that saw structure is reported") {
+            // It is the more useful thing to tell the user about.
+            expect(PluginRecordingComparison.isBetter(analysis(found: false, groups: 6),
+                                                      than: analysis(found: false, groups: 0)))
+        }
+
+        await test("An empty page and a wrong page get different advice") {
+            let empty = PluginRecorder.nothingFoundWarning(analysis(found: false, groups: 0))
+            let wrong = PluginRecorder.nothingFoundWarning(analysis(found: false, groups: 11))
+            expect(empty != wrong, "the two mistakes need different remedies")
+            expect(empty.lowercased().contains("loading") || empty.contains("chargement"), empty)
+            expect(wrong.contains("11"), wrong)
+        }
+
+        await test("With no analysis at all the advice is still actionable") {
+            let text = PluginRecorder.nothingFoundWarning(nil)
+            expect(!text.isEmpty)
+        }
+    }
+}

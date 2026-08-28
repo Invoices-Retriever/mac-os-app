@@ -147,3 +147,5 @@
 "Invoice — %1$@ — %2$@" = "Invoice — %1$@ — %2$@";
 "Number: %@" = "Number: %@";
 "Date: %@" = "Date: %@";
+"Nothing on this page repeats like a list of invoices — not in the page itself, nor in any frame inside it. If the table is still loading, wait for it and analyse again." = "Nothing on this page repeats like a list of invoices — not in the page itself, nor in any frame inside it. If the table is still loading, wait for it and analyse again.";
+"The billing table is rendered in a frame; this is that frame's own address." = "The billing table is rendered in a frame; this is that frame's own address.";

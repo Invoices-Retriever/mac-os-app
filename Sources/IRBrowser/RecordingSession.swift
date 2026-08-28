@@ -33,6 +33,10 @@ public final class RecordingSession: NSObject {
     private let window: NSWindow
     private let recorder: PluginRecorder
     private let logger: RedactingLogger
+    /// Subframes that have announced themselves, so the analyser can look
+    /// inside them. Deduped on URL: WKFrameInfo has no useful identity and one
+    /// iframe reporting repeatedly would fill the list.
+    private var childFrames: [WKFrameInfo] = []
 
     public init(recorder: PluginRecorder, logger: RedactingLogger = .shared) {
         self.recorder = recorder
@@ -64,9 +68,13 @@ public final class RecordingSession: NSObject {
         super.init()
 
         controller.add(RecorderBridge(session: self), name: "irRecorder")
+        // Every frame, not only the main one. A portal that renders its
+        // billing table — or its sign-in form — inside an iframe would
+        // otherwise announce nothing, and the analyser below would have no
+        // frame to look in. This is the same lesson the collector learned.
         controller.addUserScript(WKUserScript(source: RecorderScriptSource.observer,
                                               injectionTime: .atDocumentStart,
-                                              forMainFrameOnly: true))
+                                              forMainFrameOnly: false))
         webView.navigationDelegate = self
     }
 
@@ -87,14 +95,41 @@ public final class RecordingSession: NSObject {
 
     public func currentURL() -> URL? { webView.url }
 
-    /// Runs the analyser on whatever the user is looking at now.
+    /// Runs the analyser on whatever the user is looking at now — in the main
+    /// document *and* in every subframe.
+    ///
+    /// The frames are the whole point. A great many portals draw the billing
+    /// table inside an iframe, and an analyser that only ever saw the shell
+    /// document reported "no invoice table on this page" every single time,
+    /// on pages that plainly had one.
     public func analyseCurrentPage() async throws -> PluginRecorder.PageAnalysis {
-        let result = try await webView.evaluateJavaScript(RecorderScriptSource.analysis)
-        let json = JSONValue(any: result)
-        let data = try JSONEncoder().encode(json)
-        let analysis = try JSONDecoder().decode(PluginRecorder.PageAnalysis.self, from: data)
-        await recorder.setAnalysis(analysis)
-        return analysis
+        var best = try await analyse(in: nil)
+
+        for frame in childFrames.reversed() {
+            guard var candidate = try? await analyse(in: frame) else { continue }
+            candidate.frameURL = frame.request.url?.absoluteString
+            if PluginRecordingComparison.isBetter(candidate, than: best) { best = candidate }
+        }
+
+        await recorder.setAnalysis(best)
+        return best
+    }
+
+    private func analyse(in frame: WKFrameInfo?) async throws -> PluginRecorder.PageAnalysis {
+        let result = try await webView.evaluateJavaScript(
+            RecorderScriptSource.analysis, in: frame, contentWorld: .page)
+        let data = try JSONEncoder().encode(JSONValue(any: result))
+        return try JSONDecoder().decode(PluginRecorder.PageAnalysis.self, from: data)
+    }
+
+
+    /// Remembers a subframe so the analyser can reach into it.
+    fileprivate func noteFrame(_ frame: WKFrameInfo) {
+        guard !frame.isMainFrame else { return }
+        let url = frame.request.url
+        childFrames.removeAll { $0.request.url == url }
+        childFrames.append(frame)
+        if childFrames.count > 8 { childFrames.removeFirst() }
     }
 
     fileprivate func received(_ payload: [String: Any]) {
@@ -130,6 +165,10 @@ private final class RecorderBridge: NSObject, WKScriptMessageHandler {
     func userContentController(_ controller: WKUserContentController,
                                didReceive message: WKScriptMessage) {
         guard let payload = message.body as? [String: Any] else { return }
-        MainActor.assumeIsolated { session?.received(payload) }
+        let frame = message.frameInfo
+        MainActor.assumeIsolated {
+            session?.noteFrame(frame)
+            session?.received(payload)
+        }
     }
 }

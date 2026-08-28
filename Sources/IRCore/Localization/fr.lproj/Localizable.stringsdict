@@ -34,5 +34,21 @@
 			<string>%d messages envoyés</string>
 		</dict>
 	</dict>
+	<key>%d repeating structures were found, but none of them contained a date, an amount or a link to a PDF. This is usually the wrong page: go to the billing history rather than the dashboard.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d structure répétitive trouvée, mais elle ne contenait ni date, ni montant, ni lien vers un PDF. C'est généralement la mauvaise page : allez sur l'historique de facturation plutôt que sur le tableau de bord.</string>
+			<key>other</key>
+			<string>%d structures répétitives trouvées, mais aucune ne contenait de date, de montant ni de lien vers un PDF. C'est généralement la mauvaise page : allez sur l'historique de facturation plutôt que sur le tableau de bord.</string>
+		</dict>
+	</dict>
 </dict>
 </plist>

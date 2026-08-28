@@ -43,6 +43,23 @@ public actor PluginRecorder {
     }
 
     /// What the analyser made of the page the user stopped on.
+    /// Why nothing was recognised, in terms of what was actually seen.
+    ///
+    /// "No invoice table was recognised" on its own gives a person nothing to
+    /// do differently. Whether the page had *no* repeating structure at all or
+    /// plenty of it with no dates or amounts in it points at two different
+    /// mistakes — a table that has not loaded, versus being on the wrong page.
+    public static func nothingFoundWarning(_ analysis: PageAnalysis?) -> String {
+        guard let analysis else {
+            return core("No invoice table was recognised on the page. Navigate to the billing history and analyse again, or write getDocuments by hand.")
+        }
+        let groups = analysis.repeatingGroups ?? 0
+        if groups == 0 {
+            return core("Nothing on this page repeats like a list of invoices — not in the page itself, nor in any frame inside it. If the table is still loading, wait for it and analyse again.")
+        }
+        return coreCount("%d repeating structures were found, but none of them contained a date, an amount or a link to a PDF. This is usually the wrong page: go to the billing history rather than the dashboard.", groups)
+    }
+
     public struct PageAnalysis: Sendable, Codable {
         public struct Column: Sendable, Codable, Hashable, Identifiable {
             public enum Kind: String, Sendable, Codable { case date, money, reference, text }
@@ -71,13 +88,29 @@ public actor PluginRecorder {
         public var rowCount: Int?
         public var columns: [Column]?
         public var link: Link?
+        /// How many groups of repeating siblings were seen at all, and how many
+        /// of those looked financial. Reported so a page where nothing matched
+        /// can say *why* rather than only that it did not — "I found eleven
+        /// repeating groups, none with a date or an amount in them" is
+        /// something a person can act on.
+        public var repeatingGroups: Int?
+        public var financialGroups: Int?
+        /// The frame the answer came from, when it was not the main document.
+        /// Portals render the billing table inside an iframe often enough that
+        /// the generated plugin needs to navigate straight to it.
+        public var frameURL: String?
 
         public init(found: Bool, url: String, title: String? = nil,
                     rowSelector: String? = nil, rowCount: Int? = nil,
-                    columns: [Column]? = nil, link: Link? = nil) {
+                    columns: [Column]? = nil, link: Link? = nil,
+                    repeatingGroups: Int? = nil, financialGroups: Int? = nil,
+                    frameURL: String? = nil) {
             self.found = found; self.url = url; self.title = title
             self.rowSelector = rowSelector; self.rowCount = rowCount
             self.columns = columns; self.link = link
+            self.repeatingGroups = repeatingGroups
+            self.financialGroups = financialGroups
+            self.frameURL = frameURL
         }
     }
 
@@ -99,6 +132,11 @@ public actor PluginRecorder {
     public func setAnalysis(_ analysis: PageAnalysis) {
         self.analysis = analysis
         if let host = URL(string: analysis.url)?.host { hosts.insert(host.lowercased()) }
+        // The frame's host counts too, or allowedDomains omits exactly the one
+        // the collection needs.
+        if let frame = analysis.frameURL, let host = URL(string: frame)?.host {
+            hosts.insert(host.lowercased())
+        }
     }
 
     public func reset() {
@@ -226,9 +264,18 @@ public actor PluginRecorder {
 
         // --- getDocuments, from the analysed table ---------------------------
         var getDocuments: [PluginStep] = []
-        if !landing.isEmpty {
+        // When the table turned up inside an iframe, go straight to that
+        // frame's own address rather than to the shell that embeds it. The
+        // engine can reach into frames, but a plugin that navigates to the
+        // frame directly is simpler, faster and does not depend on the shell
+        // still embedding it the same way next month.
+        let target = analysis?.frameURL?.nilIfEmpty ?? landing
+        if !target.isEmpty {
             var navigate = PluginStep(action: .navigate)
-            navigate.url = landing
+            navigate.url = target
+            if analysis?.frameURL != nil {
+                navigate.description = core("The billing table is rendered in a frame; this is that frame's own address.")
+            }
             getDocuments.append(navigate)
             var idle = PluginStep(action: .waitForNetworkIdle)
             idle.idleMs = 1000
@@ -299,7 +346,7 @@ public actor PluginRecorder {
                 warnings.append(core("No column looked like an invoice number, so the date is standing in as the document id. An id has to be stable and unique or the same invoice arrives every month — check this one first."))
             }
         } else {
-            warnings.append(core("No invoice table was recognised on the page. Navigate to the billing history and analyse again, or write getDocuments by hand."))
+            warnings.append(Self.nothingFoundWarning(analysis))
         }
 
         // --- Assemble --------------------------------------------------------
@@ -381,5 +428,25 @@ extension String {
     var nilIfBlank: String? {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
+
+/// Which of two frame analyses to believe.
+///
+/// In IRCore rather than beside the WebKit that calls it, because it is a rule
+/// rather than a mechanism — and because a rule with no test is a rule that
+/// drifts.
+public enum PluginRecordingComparison {
+    /// A frame that found a table beats one that did not; between two that
+    /// found one, more rows wins. Between two that found nothing, the one that
+    /// at least saw repeating structure is the more useful thing to report.
+    public static func isBetter(_ candidate: PluginRecorder.PageAnalysis,
+                                than current: PluginRecorder.PageAnalysis) -> Bool {
+        if candidate.found != current.found { return candidate.found }
+        if candidate.found {
+            return (candidate.rowCount ?? 0) > (current.rowCount ?? 0)
+        }
+        return (candidate.repeatingGroups ?? 0) > (current.repeatingGroups ?? 0)
     }
 }

@@ -153,6 +153,7 @@ enum RecorderScripts {
       };
 
       const candidates = [];
+      let repeatingGroups = 0;
       for (const parent of document.querySelectorAll('body *')) {
         const children = Array.from(parent.children);
         if (children.length < 3 || children.length > 400) continue;
@@ -166,6 +167,7 @@ enum RecorderScripts {
         const [best, count] = [...shapes.entries()].sort((a, b) => b[1] - a[1])[0];
         if (count < 3) continue;
 
+        repeatingGroups += 1;
         const rows = children.filter((c) => shape(c) === best);
         const text = rows.map((r) => (r.innerText || '')).join(' ');
         // A billing table has dates and amounts in it. Rank on that rather than
@@ -179,7 +181,19 @@ enum RecorderScripts {
         candidates.push({ parent, rows, score: looksFinancial * 10 + Math.min(rows.length, 30) });
       }
 
-      if (!candidates.length) return { found: false, url: location.href, title: document.title };
+      // Saying what was looked at, not only that nothing matched. "Eleven
+      // repeating groups, none of them with a date or an amount in it" tells
+      // the user they are on the wrong page; "no repeating groups at all"
+      // tells them the table has not loaded yet.
+      if (!candidates.length) {
+        return {
+          found: false,
+          url: location.href,
+          title: document.title,
+          repeatingGroups: repeatingGroups,
+          financialGroups: 0
+        };
+      }
 
       candidates.sort((a, b) => b.score - a.score);
       const winner = candidates[0];
@@ -226,7 +240,9 @@ enum RecorderScripts {
         rowSelector: __selectorFor(row, null).replace(/:nth-of-type\\(\\d+\\)$/, ''),
         rowCount: winner.rows.length,
         columns: columns,
-        link: link
+        link: link,
+        repeatingGroups: repeatingGroups,
+        financialGroups: candidates.length
       };
     })();
     """

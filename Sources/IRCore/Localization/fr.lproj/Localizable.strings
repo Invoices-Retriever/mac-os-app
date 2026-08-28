@@ -147,3 +147,5 @@
 "Invoice — %1$@ — %2$@" = "Facture — %1$@ — %2$@";
 "Number: %@" = "Numéro : %@";
 "Date: %@" = "Date : %@";
+"Nothing on this page repeats like a list of invoices — not in the page itself, nor in any frame inside it. If the table is still loading, wait for it and analyse again." = "Rien sur cette page ne se répète comme une liste de factures — ni dans la page elle-même, ni dans aucune frame qu'elle contient. Si le tableau est encore en cours de chargement, attendez-le et relancez l'analyse.";
+"The billing table is rendered in a frame; this is that frame's own address." = "Le tableau de facturation est rendu dans une frame ; voici l'adresse propre à cette frame.";
