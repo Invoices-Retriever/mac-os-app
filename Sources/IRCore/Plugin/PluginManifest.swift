@@ -102,6 +102,11 @@ public struct PluginManifest: Codable, Sendable, Identifiable, Hashable {
 }
 
 public enum PluginStatus: String, Codable, Sendable, Hashable, CaseIterable {
+    /// Structurally valid, but nobody has yet run it against a live account.
+    /// Every plugin starts here. It is offered in the catalogue and badged, so
+    /// that a user choosing it knows they are the one finding out — which is
+    /// how a new supplier gets covered at all.
+    case unverified
     /// Working as far as anyone knows.
     case active
     /// Failing for several users. Still installable, but flagged in the
@@ -110,8 +115,11 @@ public enum PluginStatus: String, Codable, Sendable, Hashable, CaseIterable {
     /// Unmaintained and broken for 90 days. No longer offered (§5.5).
     case archived
 
+    /// Shown to a user, so it says what it means for them rather than naming
+    /// an internal state.
     public var displayName: String {
         switch self {
+        case .unverified: return core("Not tested yet")
         case .active: return core("Working")
         case .degraded: return core("Degraded")
         case .archived: return core("Archived")

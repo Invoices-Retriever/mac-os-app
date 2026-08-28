@@ -55,6 +55,7 @@
 "Credentials" = "Identifiants";
 "Credentials go to the macOS keychain, on this Mac only. They are never written to the database, the logs or a screenshot." = "Les identifiants vont dans le trousseau macOS, sur ce Mac uniquement. Ils ne sont jamais écrits dans la base, les journaux ni une capture d'écran.";
 "Dates and amounts always follow your regional settings, whichever language you pick here." = "Les dates et les montants suivent toujours vos réglages régionaux, quelle que soit la langue choisie ici.";
+"Degraded" = "Dégradé";
 "Delete…" = "Supprimer…";
 "Documents already collected stay in your library. Nothing is deleted from the supplier's portal." = "Les documents déjà collectés restent dans votre bibliothèque. Rien n'est supprimé sur le portail du fournisseur.";
 "Documents are stored here in a folder structure you can read without this app. Moving them is your call; use “Rescan folder” afterwards." = "Les documents sont rangés ici dans une arborescence lisible sans cette application. Les déplacer est votre choix ; utilisez ensuite « Réanalyser le dossier ».";
@@ -94,6 +95,7 @@
 "Last month" = "Mois dernier";
 "Library" = "Bibliothèque";
 "Live" = "En direct";
+"Local copy" = "Copie locale";
 "More is not always faster: each source runs a browser, and portals notice bursts." = "Plus n'est pas toujours plus rapide : chaque source lance un navigateur, et les portails remarquent les rafales.";
 "Move the file to the Trash and forget it" = "Mettre le fichier à la corbeille et l'oublier";
 "Name" = "Nom";
@@ -106,6 +108,7 @@
 "No plugin matches" = "Aucun plugin ne correspond";
 "No plugins installed" = "Aucun plugin installé";
 "No sources yet" = "Aucune source pour l'instant";
+"Not tested" = "Pas testé";
 "Nothing is removed from the supplier's portal. The file goes to the Trash, not straight to nowhere." = "Rien n'est supprimé sur le portail du fournisseur. Le fichier va à la corbeille, pas dans le vide.";
 "OK" = "OK";
 "On day %@" = "Le %@";
@@ -141,6 +144,7 @@
 "Run" = "Exécuter";
 "Run scheduled collections while the app is open" = "Exécuter les collectes planifiées quand l'application est ouverte";
 "Runs" = "Exécutions";
+"Runs JavaScript" = "Exécute du JavaScript";
 "Save" = "Enregistrer";
 "Save and mark as checked" = "Enregistrer et marquer comme vérifié";
 "Schedule" = "Planification";
@@ -178,6 +182,7 @@
 "This quarter" = "Ce trimestre";
 "This sends the text of the invoice to the provider you configure. You become responsible for that transfer under the GDPR." = "Cela envoie le texte de la facture au fournisseur que vous configurez. Vous devenez responsable de ce transfert au sens du RGPD.";
 "This year" = "Cette année";
+"Unofficial" = "Non officiel";
 "Use on-device OCR for scanned PDFs" = "Utiliser l'OCR local pour les PDF scannés";
 "Use “Refresh from the index” to download the published catalogue. Your supplier may not be covered yet — writing a plugin is a single JSON file, see the Plugin developer tab." = "Utilisez « Rafraîchir depuis l'index » pour télécharger le catalogue publié. Votre fournisseur n'est peut-être pas encore couvert — écrire un plugin tient dans un seul fichier JSON, voyez l'onglet Développement de plugins.";
 "Uses Apple's Vision framework. Nothing is sent anywhere." = "Utilise le framework Vision d'Apple. Rien n'est envoyé nulle part.";

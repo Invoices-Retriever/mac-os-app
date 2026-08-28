@@ -63,9 +63,9 @@
     },
 
     "status": {
-      "enum": ["active", "degraded", "archived"],
+      "enum": ["unverified", "active", "degraded", "archived"],
       "default": "active",
-      "description": "Set by maintainers. Archived plugins are no longer offered for installation."
+      "description": "unverified is where every plugin starts: structurally valid, never run against a live account. active once someone has. degraded when it is failing for several people, archived when unmaintained and broken for 90 days — archived plugins are no longer offered for installation."
     },
 
     "configSchema": {

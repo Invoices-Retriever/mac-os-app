@@ -43,12 +43,14 @@
 "Monthly on day %1$@ at %2$@" = "Chaque mois le %1$@ à %2$@";
 
 /* --- Plugins ------------------------------------------------------------ */
+"Not tested yet" = "Pas encore testé";
 "Working" = "Fonctionne";
 "Degraded" = "Dégradé";
 "Archived" = "Archivé";
 
 "This plugin did not come from the official index. It has not been reviewed by the project." = "Ce plugin ne provient pas de l'index officiel. Il n'a pas été relu par le projet.";
 "It runs its own JavaScript inside the supplier's pages." = "Il exécute son propre JavaScript dans les pages du fournisseur.";
+"Nobody has run this against a real account yet. It may not work, and if it does not, the run log will tell you which step gave up." = "Personne ne l'a encore exécuté sur un compte réel. Il peut ne pas fonctionner ; si c'est le cas, le journal d'exécution indiquera à quelle étape il a renoncé.";
 "It is currently reported as failing for several people." = "Il est actuellement signalé en échec chez plusieurs personnes.";
 "It is archived: unmaintained and broken for more than 90 days." = "Il est archivé : sans mainteneur et cassé depuis plus de 90 jours.";
 "It can open pages, type your credentials and download files on: %@. It cannot reach anywhere else." = "Il peut ouvrir des pages, saisir vos identifiants et télécharger des fichiers sur : %@. Il ne peut atteindre aucun autre domaine.";

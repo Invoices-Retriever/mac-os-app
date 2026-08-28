@@ -41,6 +41,9 @@ public actor PluginCatalog {
             if manifest.containsArbitraryJavaScript {
                 out.append(core("It runs its own JavaScript inside the supplier's pages."))
             }
+            if manifest.effectiveStatus == .unverified {
+                out.append(core("Nobody has run this against a real account yet. It may not work, and if it does not, the run log will tell you which step gave up."))
+            }
             if manifest.effectiveStatus == .degraded {
                 out.append(core("It is currently reported as failing for several people."))
             }

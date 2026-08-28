@@ -133,18 +133,21 @@ private struct CatalogCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 6) {
+                if entry.manifest.effectiveStatus == .unverified {
+                    Badge(text: t("Not tested"), colour: .yellow, symbol: "questionmark.circle")
+                }
                 if entry.manifest.effectiveStatus == .degraded {
-                    Badge(text: "Degraded", colour: .orange, symbol: "exclamationmark.triangle")
+                    Badge(text: t("Degraded"), colour: .orange, symbol: "exclamationmark.triangle")
                 }
                 // F10.8: the badge is derived from the steps, not from what the
                 // manifest claims about itself.
                 if entry.manifest.containsArbitraryJavaScript {
-                    Badge(text: "Runs JavaScript", colour: .purple, symbol: "curlybraces")
+                    Badge(text: t("Runs JavaScript"), colour: .purple, symbol: "curlybraces")
                 }
                 if entry.provenance == .local {
-                    Badge(text: "Local copy", colour: .blue, symbol: "hammer")
+                    Badge(text: t("Local copy"), colour: .blue, symbol: "hammer")
                 } else if entry.provenance == .sideloaded {
-                    Badge(text: "Unofficial", colour: .orange, symbol: "questionmark.circle")
+                    Badge(text: t("Unofficial"), colour: .orange, symbol: "questionmark.circle")
                 }
                 Spacer()
                 Button(t("Add"), action: add)

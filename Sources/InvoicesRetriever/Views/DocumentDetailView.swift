@@ -91,7 +91,7 @@ struct DocumentDetailView: View {
             HStack(spacing: 8) {
                 Text(document.kind.displayName)
                 if document.verifiedByHuman {
-                    Badge(text: "Checked by you", colour: .green, symbol: "checkmark.seal")
+                    Badge(text: t("Checked by you"), colour: .green, symbol: "checkmark.seal")
                 } else {
                     confidenceBadge
                 }
@@ -104,7 +104,7 @@ struct DocumentDetailView: View {
     private var confidenceBadge: some View {
         let confidence = document.lowestConfidence
         let colour: Color = confidence >= 0.8 ? .green : (confidence >= 0.6 ? .yellow : .orange)
-        return Badge(text: "Confidence \(Int(confidence * 100))%", colour: colour, symbol: "gauge.medium")
+        return Badge(text: t("Confidence %@%%", number(Int(confidence * 100))), colour: colour, symbol: "gauge.medium")
     }
 
     @ViewBuilder

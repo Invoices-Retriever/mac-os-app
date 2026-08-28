@@ -43,12 +43,14 @@
 "Monthly on day %1$@ at %2$@" = "Monthly on day %1$@ at %2$@";
 
 /* --- Plugins ------------------------------------------------------------ */
+"Not tested yet" = "Not tested yet";
 "Working" = "Working";
 "Degraded" = "Degraded";
 "Archived" = "Archived";
 
 "This plugin did not come from the official index. It has not been reviewed by the project." = "This plugin did not come from the official index. It has not been reviewed by the project.";
 "It runs its own JavaScript inside the supplier's pages." = "It runs its own JavaScript inside the supplier's pages.";
+"Nobody has run this against a real account yet. It may not work, and if it does not, the run log will tell you which step gave up." = "Nobody has run this against a real account yet. It may not work, and if it does not, the run log will tell you which step gave up.";
 "It is currently reported as failing for several people." = "It is currently reported as failing for several people.";
 "It is archived: unmaintained and broken for more than 90 days." = "It is archived: unmaintained and broken for more than 90 days.";
 "It can open pages, type your credentials and download files on: %@. It cannot reach anywhere else." = "It can open pages, type your credentials and download files on: %@. It cannot reach anywhere else.";

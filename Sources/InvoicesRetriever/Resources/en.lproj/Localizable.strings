@@ -55,6 +55,7 @@
 "Credentials" = "Credentials";
 "Credentials go to the macOS keychain, on this Mac only. They are never written to the database, the logs or a screenshot." = "Credentials go to the macOS keychain, on this Mac only. They are never written to the database, the logs or a screenshot.";
 "Dates and amounts always follow your regional settings, whichever language you pick here." = "Dates and amounts always follow your regional settings, whichever language you pick here.";
+"Degraded" = "Degraded";
 "Delete…" = "Delete…";
 "Documents already collected stay in your library. Nothing is deleted from the supplier's portal." = "Documents already collected stay in your library. Nothing is deleted from the supplier's portal.";
 "Documents are stored here in a folder structure you can read without this app. Moving them is your call; use “Rescan folder” afterwards." = "Documents are stored here in a folder structure you can read without this app. Moving them is your call; use “Rescan folder” afterwards.";
@@ -94,6 +95,7 @@
 "Last month" = "Last month";
 "Library" = "Library";
 "Live" = "Live";
+"Local copy" = "Local copy";
 "More is not always faster: each source runs a browser, and portals notice bursts." = "More is not always faster: each source runs a browser, and portals notice bursts.";
 "Move the file to the Trash and forget it" = "Move the file to the Trash and forget it";
 "Name" = "Name";
@@ -106,6 +108,7 @@
 "No plugin matches" = "No plugin matches";
 "No plugins installed" = "No plugins installed";
 "No sources yet" = "No sources yet";
+"Not tested" = "Not tested";
 "Nothing is removed from the supplier's portal. The file goes to the Trash, not straight to nowhere." = "Nothing is removed from the supplier's portal. The file goes to the Trash, not straight to nowhere.";
 "OK" = "OK";
 "On day %@" = "On day %@";
@@ -141,6 +144,7 @@
 "Run" = "Run";
 "Run scheduled collections while the app is open" = "Run scheduled collections while the app is open";
 "Runs" = "Runs";
+"Runs JavaScript" = "Runs JavaScript";
 "Save" = "Save";
 "Save and mark as checked" = "Save and mark as checked";
 "Schedule" = "Schedule";
@@ -178,6 +182,7 @@
 "This quarter" = "This quarter";
 "This sends the text of the invoice to the provider you configure. You become responsible for that transfer under the GDPR." = "This sends the text of the invoice to the provider you configure. You become responsible for that transfer under the GDPR.";
 "This year" = "This year";
+"Unofficial" = "Unofficial";
 "Use on-device OCR for scanned PDFs" = "Use on-device OCR for scanned PDFs";
 "Use “Refresh from the index” to download the published catalogue. Your supplier may not be covered yet — writing a plugin is a single JSON file, see the Plugin developer tab." = "Use “Refresh from the index” to download the published catalogue. Your supplier may not be covered yet — writing a plugin is a single JSON file, see the Plugin developer tab.";
 "Uses Apple's Vision framework. Nothing is sent anywhere." = "Uses Apple's Vision framework. Nothing is sent anywhere.";
