@@ -67,8 +67,16 @@ struct AddSourceSheet: View {
                             .font(.callout)
                         if let url = api.credentialsURL.flatMap(URL.init(string:)) {
                             // "Create an application key" is useless without
-                            // the address where you create it.
+                            // the address where you create it, and the link a
+                            // plugin gives usually pre-fills the rights too.
                             Link(t("Create the keys on the supplier's site"), destination: url)
+                        }
+                        if let hint = api.credentialsHint {
+                            // Plugin-authored, because the mistake to avoid is
+                            // the supplier's, not ours.
+                            Label(hint, systemImage: "exclamationmark.triangle")
+                                .font(.callout)
+                                .foregroundStyle(.orange)
                         }
                     }
                 }

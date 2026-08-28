@@ -123,6 +123,10 @@
           "format": "uri",
           "description": "Where the user creates the keys. Shown when adding a source — \"create an application key\" is useless without the URL."
         },
+        "credentialsHint": {
+          "type": "string",
+          "description": "The one thing that is easy to get wrong on that page, in your own words — an expiry that would silently stop collection, a scope that must be ticked. Shown in orange beside the link."
+        },
         "headers": {
           "type": "object",
           "description": "Sent on every request. Values are templates.",

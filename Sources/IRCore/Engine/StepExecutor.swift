@@ -442,8 +442,14 @@ public actor StepExecutor {
     /// repeating an absolute URL fifteen times.
     private func absoluteURL(_ string: String) throws -> URL {
         if let base = context.manifest.api?.baseURL, !string.contains("://") {
-            guard let baseURL = URL(string: base),
-                  let url = URL(string: string, relativeTo: baseURL)?.absoluteURL else {
+            // Deliberately not URL(string:relativeTo:): an absolute path
+            // replaces the base's path entirely, so a base of
+            // "https://eu.api.ovh.com/1.0" plus "/me/bill" silently becomes
+            // "https://eu.api.ovh.com/me/bill" — a URL that is not the API,
+            // and whose failure looks like rejected credentials.
+            let trimmed = base.hasSuffix("/") ? String(base.dropLast()) : base
+            let path = string.hasPrefix("/") ? string : "/" + string
+            guard let url = URL(string: trimmed + path) else {
                 throw IRError.assertionFailed("'\(string)' is not a URL")
             }
             return url

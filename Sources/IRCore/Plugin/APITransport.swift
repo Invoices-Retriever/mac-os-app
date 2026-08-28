@@ -27,19 +27,29 @@ public struct APITransport: Codable, Sendable, Hashable {
     public var auth: APIAuth?
     /// Where the user obtains the credentials. Shown verbatim when adding a
     /// source, because "create an application key" is useless without the URL.
+    /// Prefer a link that pre-fills the supplier's form with exactly the rights
+    /// the plugin needs: it removes the step users most often get wrong.
     public var credentialsURL: String?
+    /// The one thing that is easy to get wrong on that page, in the plugin's
+    /// own words. Suppliers differ — an expiry that silently stops collection,
+    /// a scope that must be ticked — and the application cannot know which.
+    public var credentialsHint: String?
 
     private enum CodingKeys: String, CodingKey {
         case baseURL = "baseUrl"
-        case headers, auth, credentialsURL = "credentialsUrl"
+        case headers, auth
+        case credentialsURL = "credentialsUrl"
+        case credentialsHint = "credentialsHint"
     }
 
     public init(baseURL: String, headers: [String: String]? = nil,
-                auth: APIAuth? = nil, credentialsURL: String? = nil) {
+                auth: APIAuth? = nil, credentialsURL: String? = nil,
+                credentialsHint: String? = nil) {
         self.baseURL = baseURL
         self.headers = headers
         self.auth = auth
         self.credentialsURL = credentialsURL
+        self.credentialsHint = credentialsHint
     }
 }
 

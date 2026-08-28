@@ -113,7 +113,8 @@ public struct PluginRunner: Sendable {
             await created.setVisible(mode == .authenticateOnly)
 
             // --- Is the stored session still good? --------------------------
-            let signedIn = await isSignedIn(executor: executor, session: created)
+            let checkFailure = await checkAuthFailure(executor: executor)
+            let signedIn = checkFailure == nil
             logger.info(signedIn ? "session is still valid" : "session is not valid",
                         source: source.id, run: runID)
 
@@ -122,6 +123,11 @@ public struct PluginRunner: Sendable {
                 // either work or they do not, and asking the user to "sign in"
                 // would open a window that cannot help them.
                 if manifest.isAPIOnly {
+                    // Only an actual refusal is about the credentials.
+                    if let checkFailure,
+                       !((checkFailure as? IRError)?.needsUserSignIn ?? false) {
+                        throw checkFailure
+                    }
                     throw IRError.authenticationFailed(core(
                         "the API refused these credentials; check them in the source's settings"))
                 }
@@ -222,12 +228,23 @@ public struct PluginRunner: Sendable {
         return false
     }
 
-    private func isSignedIn(executor: StepExecutor, session: any BrowserSession) async -> Bool {
+    private func isSignedIn(executor: StepExecutor) async -> Bool {
+        await checkAuthFailure(executor: executor) == nil
+    }
+
+    /// Why checkAuth failed, or nil when it did not.
+    ///
+    /// The reason is kept rather than collapsed to a boolean. For a portal,
+    /// "checkAuth threw" really does mean "not signed in". For an API plugin it
+    /// might mean the endpoint is misdeclared or a template is unresolvable,
+    /// and reporting either of those as "your credentials were refused" sends
+    /// the user to check keys that were never at fault.
+    private func checkAuthFailure(executor: StepExecutor) async -> Error? {
         do {
             try await executor.run(manifest.checkAuth, section: "checkAuth")
-            return true
+            return nil
         } catch {
-            return false
+            return error
         }
     }
 
@@ -280,7 +297,7 @@ public struct PluginRunner: Sendable {
         if await inSignInFlow() {
             logger.debug("still inside the sign-in flow; not navigating away from it",
                          source: source.id, run: runID)
-        } else if await isSignedIn(executor: executor, session: session) {
+        } else if await isSignedIn(executor: executor) {
             return
         }
 
@@ -302,7 +319,7 @@ public struct PluginRunner: Sendable {
             // Cheap and non-destructive while the user is still working; the
             // real check only once they have left the sign-in flow.
             if await inSignInFlow() { return false }
-            return await isSignedIn(executor: executor, session: session)
+            return await isSignedIn(executor: executor)
         }
         // Give back every second the person took. Otherwise a slow two-factor
         // code leaves no budget for the collection it was meant to unlock.

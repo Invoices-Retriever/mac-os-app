@@ -839,6 +839,60 @@ func runAPITransportSuites() async {
             expect(other != "$1$6ab9c7d6fcbbb9df417cd28c334a40b50d76b326")
         }
 
+        await test("A base URL with a path prefix survives a relative step") {
+            // URL(string:relativeTo:) drops it: an absolute path replaces the
+            // base's path, so /1.0 vanishes and every call goes to a URL that
+            // is not the API — which fails looking exactly like bad keys.
+            let manifest = try PluginManifest.decode(from: Data("""
+            {"id":"based","name":"Based","version":"1.0.0","engine":">=1.2.0",
+             "allowedDomains":["eu.api.ovh.com"],
+             "api":{"baseUrl":"https://eu.api.ovh.com/1.0"},
+             "checkAuth":[{"action":"apiRequest","url":"/me/bill","assignTo":"x"}],
+             "getDocuments":[{"action":"apiRequest","url":"/me/bill","assignTo":"ids"},
+                             {"action":"extractAll","items":"{{ids}}","forEach":[
+                               {"action":"downloadPdf","url":"{{item.pdfUrl}}",
+                                "document":{"id":"{{item.id}}","date":"{{item.date}}"}}]}]}
+            """.utf8))
+            let source = Source(entityID: UUID(), pluginID: manifest.id,
+                                pluginVersion: manifest.version, displayName: "Based")
+            let context = ExecutionContext(source: source, manifest: manifest, runID: UUID(),
+                                           config: [:], secrets: [:], totpCodes: [:],
+                                           incrementalCutoff: Date.distantPast)
+            let fake = FakeBrowserSession(pages: [:], start: "https://eu.api.ovh.com/1.0")
+            fake.apiResponses["https://eu.api.ovh.com/1.0/me/bill"] =
+                APIResponse(status: 200, json: .array([]))
+            let executor = StepExecutor(
+                session: fake, context: context,
+                policy: DomainPolicy(allowedDomains: ["eu.api.ovh.com"]),
+                deadline: Deadline(30), rateLimiter: RateLimiter(minimumInterval: .milliseconds(1)))
+            try await executor.run(manifest.checkAuth, section: "checkAuth")
+            expectEqual(fake.apiCalls, ["GET https://eu.api.ovh.com/1.0/me/bill"])
+        }
+
+        await test("Declared auth headers can use the request's own scope") {
+            // OVHcloud sends the timestamp as a header as well as inside the
+            // signature. Resolving that header against the run's context alone
+            // throws "unknown variable {{api.time}}" — and that failure reaches
+            // the user as "the API refused these credentials".
+            var auth = APIAuth(type: .signature)
+            auth.headers = [
+                "X-Ovh-Application": "{{secret.applicationSecret}}",
+                "X-Ovh-Timestamp": "{{api.time}}",
+                "X-Method": "{{request.method}}",
+            ]
+            auth.signature = ovhSignature()
+
+            let headers = try session().authHeaders(
+                auth, method: "GET",
+                url: URL(string: "https://eu.api.ovh.com/1.0/me/bill")!,
+                body: "", time: "1700000000")
+
+            expectEqual(headers["X-Ovh-Timestamp"], "1700000000")
+            expectEqual(headers["X-Method"], "GET")
+            expectEqual(headers["X-Ovh-Application"], "APP_SECRET")
+            expect(headers["X-Ovh-Signature"]?.hasPrefix("$1$") == true)
+        }
+
         await test("A browser step is refused before it can run") {
             let s = session()
             var refused = 0

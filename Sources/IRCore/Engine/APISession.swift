@@ -115,21 +115,15 @@ public final class APISession: BrowserSession, @unchecked Sendable {
 
     private func authenticate(_ request: inout URLRequest, with auth: APIAuth,
                               method: String, url: URL, body: String) async throws {
-        for (name, value) in auth.headers ?? [:] {
-            request.setValue(try resolve(value), forHTTPHeaderField: name)
+        // Read before the headers, not inside the signature branch: a scheme
+        // like OVHcloud's puts the timestamp in a header of its own as well as
+        // in the signature, and those headers are resolved here.
+        let time = try await apiTime(auth.time)
+        for (name, value) in try authHeaders(auth, method: method, url: url, body: body, time: time) {
+            request.setValue(value, forHTTPHeaderField: name)
         }
 
-        switch auth.type {
-        case .header:
-            break
-
-        case .basic:
-            let user = try resolve(auth.username ?? "")
-            let password = try resolve(auth.password ?? "")
-            let encoded = Data("\(user):\(password)".utf8).base64EncodedString()
-            request.setValue("Basic \(encoded)", forHTTPHeaderField: "Authorization")
-
-        case .oauth2ClientCredentials:
+        if auth.type == .oauth2ClientCredentials {
             guard let endpoint = auth.token else {
                 throw IRError.invalidPlugin(core("the plugin declares OAuth2 but no token endpoint"))
             }
@@ -137,15 +131,41 @@ public final class APISession: BrowserSession, @unchecked Sendable {
             let format = endpoint.format ?? "Bearer %@"
             request.setValue(String(format: format, token),
                              forHTTPHeaderField: endpoint.header ?? "Authorization")
+        }
+    }
+
+    /// Every header authentication contributes, as a value rather than a side
+    /// effect — so it can be tested without a server.
+    ///
+    /// The declared headers are resolved with the *request's* scope, because
+    /// that is where `{{api.time}}` and `{{request.…}}` mean anything. Resolving
+    /// them against the run's context alone throws "unknown variable", and that
+    /// failure surfaces as "the API refused these credentials", which sends the
+    /// user to check keys that were never the problem.
+    public func authHeaders(_ auth: APIAuth, method: String, url: URL,
+                            body: String, time: String) throws -> [String: String] {
+        var out: [String: String] = [:]
+        for (name, value) in auth.headers ?? [:] {
+            out[name] = try resolveRequestTemplate(value, method: method, url: url,
+                                                   body: body, time: time)
+        }
+
+        switch auth.type {
+        case .header, .oauth2ClientCredentials:
+            break
+
+        case .basic:
+            let user = try resolve(auth.username ?? "")
+            let password = try resolve(auth.password ?? "")
+            out["Authorization"] = "Basic " + Data("\(user):\(password)".utf8).base64EncodedString()
 
         case .signature:
             guard let recipe = auth.signature else {
                 throw IRError.invalidPlugin(core("the plugin declares a signed API but no signature"))
             }
-            let time = try await apiTime(auth.time)
-            let value = try sign(recipe, method: method, url: url, body: body, time: time)
-            request.setValue(value, forHTTPHeaderField: recipe.header)
+            out[recipe.header] = try sign(recipe, method: method, url: url, body: body, time: time)
         }
+        return out
     }
 
     /// Fetched once and reused: the token is valid for a while, and asking for
