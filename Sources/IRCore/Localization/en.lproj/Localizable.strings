@@ -113,3 +113,9 @@
 "Currency code, EUR" = "Currency code, EUR";
 "invoice, credit-note, receipt…" = "invoice, credit-note, receipt…";
 "Identifier reported by the plugin" = "Identifier reported by the plugin";
+"Invoices — %1$@ — %2$@" = "Invoices — %1$@ — %2$@";
+"Invoices — %@" = "Invoices — %@";
+"Invoices" = "Invoices";
+"Total: %@" = "Total: %@";
+"no HTTP response from %@" = "no HTTP response from %@";
+"Paperless answered %1$@: %2$@" = "Paperless answered %1$@: %2$@";

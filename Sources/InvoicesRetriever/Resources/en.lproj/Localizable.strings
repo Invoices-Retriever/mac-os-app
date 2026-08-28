@@ -200,7 +200,6 @@
 "Supplier websites, when you collect" = "Supplier websites, when you collect";
 "Text" = "Text";
 "The CI checks this so reviewers can find a plugin by its id." = "The CI checks this so reviewers can find a plugin by its id.";
-"The URL and any header are stored in this window only — configure a permanent destination in Settings once you are happy with it." = "The URL and any header are stored in this window only — configure a permanent destination in Settings once you are happy with it.";
 "The plugin" = "The plugin";
 "The plugin index address in Settings is not a URL." = "The plugin index address in Settings is not a URL.";
 "The plugin index, to find new and updated plugins" = "The plugin index, to find new and updated plugins";
@@ -308,3 +307,15 @@
 "Rescan folder" = "Rescan folder";
 "Show suppliers' logos" = "Show suppliers' logos";
 "Shown on exported registers, so an accountant knows whose books these are." = "Shown on exported registers, so an accountant knows whose books these are.";
+"E-mail" = "E-mail";
+"E-mail to %@" = "E-mail to %@";
+"Paperless-ngx" = "Paperless-ngx";
+"Opens a message with the invoices attached and a summary written out. Nothing is sent: you read it and press Send yourself." = "Opens a message with the invoices attached and a summary written out. Nothing is sent: you read it and press Send yourself.";
+"Uploads each PDF into a Paperless-ngx instance, with its date and a title already filled in." = "Uploads each PDF into a Paperless-ngx instance, with its date and a title already filled in.";
+"The URL and any header are kept for this export only. Nothing is stored." = "The URL and any header are kept for this export only. Nothing is stored.";
+"API token" = "API token";
+"Create the token in Paperless under your user's settings. It is kept for this export only." = "Create the token in Paperless under your user's settings. It is kept for this export only.";
+"To (optional)" = "To (optional)";
+"Your mail application opens with the message ready. Invoices Retriever never sends anything itself." = "Your mail application opens with the message ready. Invoices Retriever never sends anything itself.";
+"No mail application is set up on this Mac, so there is nothing to open a message in." = "No mail application is set up on this Mac, so there is nothing to open a message in.";
+"%@ attached. Nothing has been sent: check the message and press Send in your mail application." = "%@ attached. Nothing has been sent: check the message and press Send in your mail application.";

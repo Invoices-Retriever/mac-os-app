@@ -1127,3 +1127,98 @@ func runEarliestDateSuites() async {
         }
     }
 }
+
+/// The two export destinations the model always declared and nothing
+/// implemented: Paperless-ngx, and an e-mail the user sends themselves.
+@MainActor
+func runExportDestinationSuites() async {
+
+    func document(_ date: String?, issuer: String?, number: String?, cents: Int?) -> InvoiceDocument {
+        var d = InvoiceDocument(entityID: UUID(), sha256: "x", relativePath: "a/b.pdf", byteSize: 1)
+        d.issuedOn = date.flatMap(InvoiceDateParser.parse)
+        d.issuer = issuer
+        d.number = number
+        d.total = cents.map { Money(cents: $0, currency: "EUR") }
+        return d
+    }
+
+    await suite("Paperless-ngx") {
+
+        await test("The endpoint is built under whatever path the instance is served at") {
+            for base in ["https://paperless.example.com",
+                         "https://paperless.example.com/"] {
+                let exporter = PaperlessExporter(baseURL: URL(string: base)!, token: "t")
+                expectEqual(exporter.endpoint.absoluteString,
+                            "https://paperless.example.com/api/documents/post_document/")
+            }
+        }
+
+        await test("A reverse proxy sub-path is kept") {
+            // Serving Paperless at /paperless behind nginx is the common
+            // self-hosted shape; dropping the prefix would post into nothing.
+            let exporter = PaperlessExporter(
+                baseURL: URL(string: "https://home.example.com/paperless")!, token: "t")
+            expectEqual(exporter.endpoint.absoluteString,
+                        "https://home.example.com/paperless/api/documents/post_document/")
+        }
+
+        await test("Two instances are two destinations") {
+            let a = PaperlessExporter(baseURL: URL(string: "https://a.example.com")!, token: "t")
+            let b = PaperlessExporter(baseURL: URL(string: "https://b.example.com")!, token: "t")
+            expect(a.destinationID != b.destinationID,
+                   "a document sent to one is not already sent to the other")
+            expectEqual(a.kind, .paperless)
+        }
+    }
+
+    await suite("E-mail message") {
+
+        let march = [document("2026-03-31", issuer: "OVHcloud", number: "FR-1", cents: 12000)]
+        let quarter = [
+            document("2026-01-15", issuer: "OVHcloud", number: "FR-1", cents: 12000),
+            document("2026-03-31", issuer: "GitHub", number: "GH-9", cents: 3450),
+        ]
+
+        await test("The subject names the organisation and the period") {
+            let subject = EmailMessage.subject(for: march, entityName: "MeilleursBiens")
+            expect(subject.contains("MeilleursBiens"), subject)
+            expect(subject.contains("2026"), subject)
+        }
+
+        await test("A range of months reads as a range") {
+            let subject = EmailMessage.subject(for: quarter, entityName: nil)
+            expect(subject.contains("–"), subject)
+        }
+
+        await test("Documents with no date do not invent a period") {
+            let undated = [document(nil, issuer: "X", number: nil, cents: nil)]
+            expect(EmailMessage.period(of: undated) == nil)
+            // And the subject still says something rather than trailing a dash.
+            let subject = EmailMessage.subject(for: undated, entityName: nil)
+            expect(!subject.hasSuffix("—"), subject)
+        }
+
+        await test("The body is a manifest, oldest first, with a total") {
+            let body = EmailMessage.body(for: quarter)
+            let lines = body.split(separator: "\n", omittingEmptySubsequences: false)
+            expect(lines[0].contains("2"), body)
+            expect(body.contains("154.50") || body.contains("154,50"), body)
+            // Oldest first: whoever reconciles this reads down the page.
+            let ovh = body.range(of: "OVHcloud")!, github = body.range(of: "GitHub")!
+            expect(ovh.lowerBound < github.lowerBound, body)
+        }
+
+        await test("A missing field is a dash, not an empty column") {
+            let body = EmailMessage.body(for: [document("2026-02-01", issuer: nil,
+                                                        number: nil, cents: nil)])
+            expect(body.contains("—"), body)
+        }
+
+        await test("Mixed currencies produce no total rather than a wrong one") {
+            var dollars = document("2026-02-01", issuer: "X", number: "1", cents: 100)
+            dollars.total = Money(cents: 100, currency: "USD")
+            let body = EmailMessage.body(for: march + [dollars])
+            expect(!body.contains("Total"), body)
+        }
+    }
+}

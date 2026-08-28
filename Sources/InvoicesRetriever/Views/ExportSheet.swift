@@ -1,7 +1,7 @@
 import SwiftUI
 import IRCore
 
-/// UC-05. Four destinations, one idempotence rule, and a plain statement of
+/// UC-05. Six destinations, one idempotence rule, and a plain statement of
 /// what is about to be sent where.
 struct ExportSheet: View {
     @Environment(AppModel.self) private var model
@@ -13,11 +13,14 @@ struct ExportSheet: View {
     @State private var folderURL: URL?
     @State private var webhookURL = ""
     @State private var webhookHeader = ""
+    @State private var paperlessURL = ""
+    @State private var paperlessToken = ""
+    @State private var emailRecipients = ""
     @State private var resend = false
     @State private var isWorking = false
 
     enum Kind: String, CaseIterable, Identifiable {
-        case folder, csv, json, webhook
+        case folder, email, csv, json, webhook, paperless
         var id: String { rawValue }
         var title: String {
             switch self {
@@ -25,6 +28,8 @@ struct ExportSheet: View {
             case .csv: return t("CSV register")
             case .json: return t("JSON register")
             case .webhook: return t("Webhook")
+            case .email: return t("E-mail")
+            case .paperless: return t("Paperless-ngx")
             }
         }
         var explanation: String {
@@ -33,6 +38,8 @@ struct ExportSheet: View {
             case .csv: return t("One row per document, for reconciliation in a spreadsheet. Amounts use a dot decimal so any tool reads them.")
             case .json: return t("The same register as JSON, for a script.")
             case .webhook: return t("Posts each document to a URL as multipart: the metadata as JSON, the PDF as a file.")
+            case .email: return t("Opens a message with the invoices attached and a summary written out. Nothing is sent: you read it and press Send yourself.")
+            case .paperless: return t("Uploads each PDF into a Paperless-ngx instance, with its date and a title already filled in.")
             }
         }
     }
@@ -44,7 +51,9 @@ struct ExportSheet: View {
                     Picker(t("Send to"), selection: $destination) {
                         ForEach(Kind.allCases) { Text($0.title).tag($0) }
                     }
-                    .pickerStyle(.segmented)
+                    // Six destinations do not fit as segments without
+                    // truncating every label into an initial.
+                    .pickerStyle(.menu)
                     Text(destination.explanation)
                         .font(.callout).foregroundStyle(.secondary)
                 }
@@ -65,8 +74,23 @@ struct ExportSheet: View {
                         TextField("https://…", text: $webhookURL)
                         TextField(t("Authorization header (optional)"), text: $webhookHeader,
                                   prompt: Text(t("Bearer …")))
-                        Text(t("The URL and any header are stored in this window only — configure a permanent destination in Settings once you are happy with it."))
+                        Text(t("The URL and any header are kept for this export only. Nothing is stored."))
                             .font(.caption).foregroundStyle(.secondary)
+                    }
+                case .paperless:
+                    Section(t("Paperless-ngx")) {
+                        TextField("https://…", text: $paperlessURL)
+                        SecureField(t("API token"), text: $paperlessToken)
+                        Text(t("Create the token in Paperless under your user's settings. It is kept for this export only."))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                case .email:
+                    Section(t("E-mail")) {
+                        TextField(t("To (optional)"), text: $emailRecipients,
+                                  prompt: Text(verbatim: "comptable@example.com"))
+                        Label(t("Your mail application opens with the message ready. Invoices Retriever never sends anything itself."),
+                              systemImage: "hand.raised")
+                            .font(.callout).foregroundStyle(.secondary)
                     }
                 }
 
@@ -92,7 +116,7 @@ struct ExportSheet: View {
             }
             .padding()
         }
-        .frame(width: 560, height: 480)
+        .frame(width: 580, height: 500)
         .overlay {
             if isWorking {
                 ProgressView(t("Exporting…"))
@@ -106,6 +130,11 @@ struct ExportSheet: View {
         switch destination {
         case .folder, .csv, .json: return folderURL != nil
         case .webhook: return URL(string: webhookURL)?.scheme?.hasPrefix("http") == true
+        case .paperless:
+            return URL(string: paperlessURL)?.scheme?.hasPrefix("http") == true
+                && !paperlessToken.isEmpty
+        // A recipient is optional: filling it in the mail window is normal.
+        case .email: return true
         }
     }
 
@@ -155,6 +184,15 @@ struct ExportSheet: View {
             var headers: [String: String] = [:]
             if !webhookHeader.isEmpty { headers["Authorization"] = webhookHeader }
             return WebhookExporter(url: url, headers: headers, sourceNames: names)
+        case .paperless:
+            guard let url = URL(string: paperlessURL) else { return nil }
+            return PaperlessExporter(baseURL: url, token: paperlessToken, sourceNames: names)
+        case .email:
+            let recipients = emailRecipients
+                .split(whereSeparator: { $0 == "," || $0 == ";" || $0 == " " })
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+            return EmailExporter(recipients: recipients, entityName: model.entity?.name)
         }
     }
 }

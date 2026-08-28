@@ -200,7 +200,6 @@
 "Supplier websites, when you collect" = "Les sites des fournisseurs, quand vous collectez";
 "Text" = "Texte";
 "The CI checks this so reviewers can find a plugin by its id." = "La CI le vérifie pour qu'un relecteur puisse retrouver un plugin par son identifiant.";
-"The URL and any header are stored in this window only — configure a permanent destination in Settings once you are happy with it." = "L'URL et l'en-tête ne sont conservés que dans cette fenêtre — configurez une destination permanente dans les réglages une fois satisfait.";
 "The plugin" = "Le plugin";
 "The plugin index address in Settings is not a URL." = "L'adresse de l'index des plugins dans les réglages n'est pas une URL.";
 "The plugin index, to find new and updated plugins" = "L'index des plugins, pour trouver les plugins nouveaux et mis à jour";
@@ -308,3 +307,15 @@
 "Rescan folder" = "Réanalyser le dossier";
 "Show suppliers' logos" = "Afficher les logos des fournisseurs";
 "Shown on exported registers, so an accountant knows whose books these are." = "Figure sur les registres exportés, pour qu'un comptable sache de quels livres il s'agit.";
+"E-mail" = "E-mail";
+"E-mail to %@" = "E-mail à %@";
+"Paperless-ngx" = "Paperless-ngx";
+"Opens a message with the invoices attached and a summary written out. Nothing is sent: you read it and press Send yourself." = "Ouvre un message avec les factures en pièces jointes et un récapitulatif rédigé. Rien n'est envoyé : vous le relisez et vous appuyez sur Envoyer.";
+"Uploads each PDF into a Paperless-ngx instance, with its date and a title already filled in." = "Dépose chaque PDF dans une instance Paperless-ngx, avec sa date et un titre déjà remplis.";
+"The URL and any header are kept for this export only. Nothing is stored." = "L'URL et l'éventuel en-tête ne servent qu'à cet export. Rien n'est conservé.";
+"API token" = "Jeton d'API";
+"Create the token in Paperless under your user's settings. It is kept for this export only." = "Créez le jeton dans Paperless, dans les réglages de votre utilisateur. Il ne sert qu'à cet export.";
+"To (optional)" = "À (facultatif)";
+"Your mail application opens with the message ready. Invoices Retriever never sends anything itself." = "Votre application de messagerie s'ouvre avec le message prêt. Invoices Retriever n'envoie jamais rien lui-même.";
+"No mail application is set up on this Mac, so there is nothing to open a message in." = "Aucune application de messagerie n'est configurée sur ce Mac : il n'y a rien pour ouvrir un message.";
+"%@ attached. Nothing has been sent: check the message and press Send in your mail application." = "%@ en pièces jointes. Rien n'a été envoyé : relisez le message et appuyez sur Envoyer dans votre application de messagerie.";

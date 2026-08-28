@@ -104,6 +104,14 @@ func core(_ key: String) -> String {
     Localization.string(key, in: .module)
 }
 
+/// Counted strings for the core's own messages, resolved through IRCore's
+/// `.stringsdict`. French treats zero as singular where English does not, and
+/// a message that says "0 documents attached" in French is a small tell that
+/// nobody read it.
+func coreCount(_ key: String, _ count: Int) -> String {
+    String(format: Localization.string(key, in: .module), count)
+}
+
 /// Same, with positional arguments. `%@` in the catalogue, in an order the
 /// translator can change with `%1$@`.
 func core(_ key: String, _ arguments: CVarArg...) -> String {
