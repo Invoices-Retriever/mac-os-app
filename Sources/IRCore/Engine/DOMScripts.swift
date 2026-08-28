@@ -248,16 +248,37 @@ enum DOMScripts {
         if ((el.tagName === 'IFRAME' || el.tagName === 'FRAME') && el.src) attrs.push('[src=' + el.src.split('?')[0] + ']');
         return attrs.join('');
       };
+      // Subtrees that can only spend the budget. An icon is a hundred paths
+      // and never a selector anyone writes.
+      const OPAQUE = new Set(['SVG', 'STYLE', 'SCRIPT', 'NOSCRIPT', 'CANVAS', 'DEFS']);
+
       const lines = [];
       const walk = (el, depth) => {
-        if (lines.length > 700 || depth > 14) return;
+        // Generously deep. A datagrid inside a framework's layout inside a
+        // portal's shell sits far further down than looks reasonable, and
+        // stopping short hides precisely the rows a plugin needs — this
+        // truncated OVHcloud's invoice table at `tbody` and showed nothing
+        // inside it.
+        if (lines.length > 1200 || depth > 30) return;
+
         const own = Array.from(el.childNodes)
           .filter(n => n.nodeType === 3)
           .map(n => n.textContent.trim()).join(' ').trim();
         // Length only: never the text itself.
         const text = own ? '  «' + own.length + ' chars»' : '';
         lines.push('  '.repeat(depth) + el.tagName.toLowerCase() + interesting(el) + text);
-        for (const child of el.children) walk(child, depth + 1);
+
+        if (OPAQUE.has(el.tagName)) return;
+
+        // A long list of identical rows says everything in its first two.
+        const children = Array.from(el.children);
+        const repeated = children.length > 4
+          && new Set(children.map(c => c.tagName + c.className)).size <= 2;
+        const shown = repeated ? children.slice(0, 2) : children;
+        for (const child of shown) walk(child, depth + 1);
+        if (repeated && children.length > 2) {
+          lines.push('  '.repeat(depth + 1) + '… ' + (children.length - 2) + ' more like the above');
+        }
       };
       if (document.body) walk(document.body, 0);
       return lines.join('\\n');

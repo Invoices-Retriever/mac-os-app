@@ -375,7 +375,11 @@ public final class WebKitBrowserSession: NSObject, BrowserSession {
     /// Remembers a subframe so the DOM steps can reach into it.
     fileprivate func noteFrame(_ frame: WKFrameInfo) {
         guard !frame.isMainFrame else { return }
-        childFrames.removeAll { $0 == frame }
+        // WKFrameInfo has no useful identity, so dedupe on the URL — otherwise
+        // one iframe announcing itself repeatedly fills the list, and the
+        // captured outline repeats the same frame eight times.
+        let url = frame.request.url
+        childFrames.removeAll { $0.request.url == url }
         childFrames.append(frame)
         // Portals nest a few frames at most; anything more is an ad network.
         if childFrames.count > 8 { childFrames.removeFirst() }
