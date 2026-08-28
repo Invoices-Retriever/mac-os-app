@@ -24,7 +24,19 @@ plugins repository do not need to write Swift.
 
 ## The signing key
 
-The Ed25519 private key that signs the plugin index lives in a GitHub Actions
-secret on the plugins repository and in one offline backup. Its public half is
-compiled into the application, so rotating it requires an application release —
-do not rotate it casually, and never publish an index signed with anything else.
+The Ed25519 private key that signs the plugin index lives in the
+`INDEX_SIGNING_KEY` secret on the plugins repository. Its public half is
+compiled into the application as `PluginCatalog.indexPublicKeyBase64`, so
+rotating it requires an application release — do not rotate it casually, and
+never publish an index signed with anything else.
+
+**Take an offline backup.** If the secret is lost, every installed copy of the
+application stops accepting new catalogues until a release ships a new public
+key. `irctl keygen` generates a pair; the private half goes in the secret and
+nowhere in the repository.
+
+To check what the application would see:
+
+```bash
+irctl catalog          # fetches the published index and verifies its signature
+```

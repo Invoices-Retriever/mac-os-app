@@ -323,6 +323,68 @@ func runIndexUpdaterSuites() async {
                         "https://invoices-retriever.github.io/plugins/index.json.sig")
         }
 
+        await test("A correctly signed index installs the plugin it names") {
+            let directory = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let catalog = PluginCatalog(installedDirectory: directory)
+
+            let plugin = Data(goodPluginJSON.utf8)
+            let digest = DocumentLibrary.sha256(plugin)
+            let index = Data("""
+            {"revision":1,"generatedAt":"2026-01-01T00:00:00Z","engine":"1.0.0","plugins":[
+              {"id":"example-portal","version":"1.0.0","name":"Example Portal",
+               "sha256":"\(digest)","path":"plugins/example-portal.json"}]}
+            """.utf8)
+
+            let keys = Signing.generateKeyPair()
+            let signature = try Signing.sign(index, privateKeyBase64: keys.privateKeyBase64)
+
+            // The fetch closure runs off the main actor, so it records what it
+            // was asked for and the assertion happens back here.
+            let requested = PathRecorder()
+            let update = try await catalog.applyIndex(
+                index, signature: signature, publicKeyBase64: keys.publicKeyBase64,
+                fetch: { path in
+                    await requested.record(path)
+                    return plugin
+                })
+
+            expectEqual(await requested.paths, ["plugins/example-portal.json"])
+            expectEqual(update.installed, ["example-portal"])
+            expect(await catalog.manifest(id: "example-portal") != nil, "the plugin was not installed")
+            expect(FileManager.default.fileExists(
+                atPath: directory.appendingPathComponent("example-portal.json").path),
+                "the plugin was not written to disk")
+        }
+
+        await test("A plugin whose bytes do not match the index is refused") {
+            let directory = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let catalog = PluginCatalog(installedDirectory: directory)
+
+            // The signature says the index is ours. It says nothing about the
+            // file the index points at, which is why the checksum is checked
+            // separately.
+            let index = Data("""
+            {"revision":1,"generatedAt":"2026-01-01T00:00:00Z","engine":"1.0.0","plugins":[
+              {"id":"example-portal","version":"1.0.0","name":"Example Portal",
+               "sha256":"0000000000000000000000000000000000000000000000000000000000000000",
+               "path":"plugins/example-portal.json"}]}
+            """.utf8)
+            let keys = Signing.generateKeyPair()
+            let signature = try Signing.sign(index, privateKeyBase64: keys.privateKeyBase64)
+
+            let update = try await catalog.applyIndex(
+                index, signature: signature, publicKeyBase64: keys.publicKeyBase64,
+                fetch: { _ in Data(goodPluginJSON.utf8) })
+
+            expect(update.installed.isEmpty, "a mismatched plugin must not install")
+            expectEqual(update.skipped["example-portal"], "checksum mismatch")
+            expect(await catalog.manifest(id: "example-portal") == nil)
+        }
+
         await test("A build with no signing key refuses to update at all") {
             let catalog = PluginCatalog(installedDirectory: FileManager.default.temporaryDirectory
                 .appendingPathComponent(UUID().uuidString))
@@ -331,4 +393,11 @@ func runIndexUpdaterSuites() async {
             await expectThrows { _ = try await updater.update(catalog) }
         }
     }
+}
+
+
+/// Records what the index asked the downloader to fetch.
+actor PathRecorder {
+    private(set) var paths: [String] = []
+    func record(_ path: String) { paths.append(path) }
 }

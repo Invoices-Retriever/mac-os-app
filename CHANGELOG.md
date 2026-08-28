@@ -30,6 +30,11 @@ semantic versioning.
   (FR/EN/DE) regular expressions over the PDF text, then on-device OCR via
   Vision. Amounts are reconciled arithmetically and each field carries a
   confidence score. The language-model fallback is defined but off.
+- **Catalogue updates from the published index**, verified with Ed25519 before
+  anything is written: the signature proves the index is ours, each plugin's
+  SHA-256 proves the file matches what the index promised, and every path is
+  resolved relative to the index so a tampered one cannot aim the downloader at
+  another host.
 - **Exports.** Folder, CSV and JSON registers, and webhook — all idempotent by
   default.
 - **Scheduling and notifications**, off until explicitly enabled, with no
@@ -46,8 +51,9 @@ semantic versioning.
 
 ### Known gaps
 
-- The plugin catalogue is drafts only; nothing has been verified against a live
-  supplier account yet.
+- The published index is empty: no plugin has been verified against a live
+  supplier account yet, so there is nothing to publish. The drafts are starting
+  points, not a catalogue.
 - E-mail collection (IMAP, Gmail, Microsoft Graph) is specified but not built.
 - Paperless-ngx and e-mail exports are not built.
 - The application is not yet signed or notarised, and there is no update

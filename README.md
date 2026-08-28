@@ -94,6 +94,7 @@ export PATH="/Applications/Invoices Retriever.app/Contents/MacOS:$PATH"
 irctl validate plugins/            # every rule CI applies
 irctl run plugins/ovh.json --step  # walk a plugin against the real portal
 irctl extract invoice.pdf          # show what the metadata extractor reads
+irctl catalog                      # fetch and verify the published plugin index
 irctl keygen                       # a signing key pair for a plugin index
 ```
 

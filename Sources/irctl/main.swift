@@ -32,6 +32,8 @@ struct IRCTL {
                 try await buildIndex(Array(arguments.dropFirst()))
             case "extract":
                 try await extract(Array(arguments.dropFirst()))
+            case "catalog":
+                try await catalog(Array(arguments.dropFirst()))
             case "keygen":
                 try keygen()
             case "help", "--help", "-h":
@@ -58,6 +60,7 @@ struct IRCTL {
           irctl run <file.json> [options]           Execute a plugin against the real portal
           irctl extract <file.pdf>                  Show what the metadata extractor reads
           irctl index <directory> [--key <file>]    Build (and optionally sign) a plugin index
+          irctl catalog [--url <index.json>]        Fetch and verify the published index
           irctl keygen                              Generate a signing key pair for the index
 
         RUN OPTIONS
@@ -259,6 +262,44 @@ struct IRCTL {
             throw error
         }
         await session.close()
+    }
+
+    // MARK: - catalog
+
+    /// Fetches the published index exactly as the application does, so a
+    /// maintainer can tell "the index is broken" from "the app is broken"
+    /// without launching the app.
+    static func catalog(_ arguments: [String]) async throws {
+        let options = Options(arguments)
+        let address = options.value("url") ?? Preferences.default.pluginIndexURL
+        guard let url = URL(string: address) else {
+            throw IRError.invalidPlugin("'\(address)' is not a URL")
+        }
+
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("irctl-catalog-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let catalog = PluginCatalog(installedDirectory: directory)
+        let key = options.value("key") ?? PluginCatalog.indexPublicKeyBase64
+        print("→ index:  \(url.absoluteString)")
+        print("→ key:    \(key == PluginCatalog.placeholderPublicKey ? "none compiled in" : String(key.prefix(16)) + "…")")
+
+        let update = try await PluginIndexUpdater(indexURL: url, publicKeyBase64: key).update(catalog)
+        print("✓ signature verified")
+
+        let entries = await catalog.all()
+        print("\n\(entries.count) plugin(s) in the index:")
+        for entry in entries {
+            let flags = entry.manifest.containsArbitraryJavaScript ? "  [runJs]" : ""
+            print("  • \(entry.manifest.id) \(entry.manifest.version)  \(entry.manifest.name)\(flags)")
+        }
+        if entries.isEmpty {
+            print("  (none — no plugin has been verified against a live account yet)")
+        }
+        for (id, reason) in update.skipped.sorted(by: { $0.key < $1.key }) {
+            print("⚠ \(id) skipped: \(reason)")
+        }
     }
 
     // MARK: - extract
