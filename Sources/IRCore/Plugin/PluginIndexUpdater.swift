@@ -114,7 +114,7 @@ public struct PluginIndexUpdater: Sendable {
 
     /// Reads the revision without trusting the rest of the document, so the
     /// rollback check happens before anything else is acted on.
-    static func revision(of index: Data) throws -> Int {
+    public static func revision(of index: Data) throws -> Int {
         struct Envelope: Decodable { let revision: Int }
         return try JSONDecoder().decode(Envelope.self, from: index).revision
     }
