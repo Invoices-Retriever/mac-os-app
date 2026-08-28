@@ -243,5 +243,53 @@
 			<string>Remonter %d jours à la première exécution</string>
 		</dict>
 	</dict>
+	<key>%d added</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d ajouté</string>
+			<key>other</key>
+			<string>%d ajoutés</string>
+		</dict>
+	</dict>
+	<key>%d updated</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d mis à jour</string>
+			<key>other</key>
+			<string>%d mis à jour</string>
+		</dict>
+	</dict>
+	<key>%d withdrawn</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d retiré</string>
+			<key>other</key>
+			<string>%d retirés</string>
+		</dict>
+	</dict>
 </dict>
 </plist>

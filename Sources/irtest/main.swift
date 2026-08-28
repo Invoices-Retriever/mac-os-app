@@ -200,6 +200,7 @@ await suite("Index signing") {
 await runLocalizationSuites()
 await runInterfaceCatalogueSuites()
 await runPluginSuites()
+await runIndexUpdaterSuites()
 await runEngineSuites()
 await runStorageSuites()
 

@@ -67,7 +67,12 @@ public actor PluginCatalog {
     /// Public key the official index is signed with (F10.2). Compiled into the
     /// app on purpose: an index that told us which key to trust would not be
     /// verifying anything.
-    public static let indexPublicKeyBase64 = "REPLACE_WITH_RELEASE_PUBLIC_KEY"
+    public static let indexPublicKeyBase64 = "RE3Jt5nz7pEyDLJzjokJ1wEZpwUNaEzrwt8nWXmh430="
+
+    /// A build that still carries this refuses to update the catalogue rather
+    /// than pretending to verify anything. Replacing it is a release step, and
+    /// rotating it means shipping a new version — see MAINTAINERS.md.
+    public static let placeholderPublicKey = "REPLACE_WITH_RELEASE_PUBLIC_KEY"
 
     public init(installedDirectory: URL, logger: RedactingLogger = .shared) {
         self.installedDirectory = installedDirectory

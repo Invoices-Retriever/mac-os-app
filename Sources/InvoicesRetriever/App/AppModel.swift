@@ -433,6 +433,43 @@ final class AppModel {
         }
     }
 
+    var isRefreshingCatalogue = false
+
+    /// F10.2. The catalogue updates without reinstalling the application, and
+    /// the index it reads is signature-verified before anything is written to
+    /// disk — see `PluginIndexUpdater`.
+    func refreshCatalogue() async {
+        guard let url = URL(string: preferences.pluginIndexURL) else {
+            alert = AlertContent(title: t("Could not refresh the catalogue"),
+                                 message: t("The plugin index address in Settings is not a URL."))
+            return
+        }
+        isRefreshingCatalogue = true
+        defer { isRefreshingCatalogue = false }
+
+        do {
+            let update = try await PluginIndexUpdater(indexURL: url).update(catalog)
+            await reload()
+
+            var parts: [String] = []
+            if !update.installed.isEmpty { parts.append(tn("%d added", update.installed.count)) }
+            if !update.updated.isEmpty { parts.append(tn("%d updated", update.updated.count)) }
+            if !update.removed.isEmpty { parts.append(tn("%d withdrawn", update.removed.count)) }
+            if parts.isEmpty { parts.append(t("Already up to date.")) }
+
+            var message = parts.joined(separator: ", ")
+            if !update.skipped.isEmpty {
+                message += "\n" + update.skipped
+                    .map { t("%1$@ skipped: %2$@", $0.key, $0.value) }
+                    .sorted().joined(separator: "\n")
+            }
+            alert = AlertContent(title: t("Catalogue"), message: message)
+        } catch {
+            alert = AlertContent(title: t("Could not refresh the catalogue"),
+                                 message: error.localizedDescription)
+        }
+    }
+
     func addDeveloperFolder(_ url: URL) async {
         await catalog.addLocalDirectory(url)
         await reload()

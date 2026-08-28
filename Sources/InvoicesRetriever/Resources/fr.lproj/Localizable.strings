@@ -6,6 +6,7 @@
 
 "%1$@ added, %2$@ already in the library." = "%1$@ ajoutés, %2$@ déjà dans la bibliothèque.";
 "%1$@ new file(s) indexed, %2$@ already known." = "%1$@ nouveau(x) fichier(s) indexé(s), %2$@ déjà connu(s).";
+"%1$@ skipped: %2$@" = "%1$@ ignoré : %2$@";
 "%@ failed" = "%@ a échoué";
 "%@ needs you to sign in" = "%@ demande une reconnexion";
 "A local model endpoint, or an API" = "Un modèle local, ou une API";
@@ -13,6 +14,7 @@
 "Add a supplier from the catalogue to start collecting invoices automatically." = "Ajoutez un fournisseur depuis le catalogue pour commencer à collecter vos factures automatiquement.";
 "Add folder…" = "Ajouter un dossier…";
 "After a successful run, only documents newer than the last success are fetched." = "Après une exécution réussie, seuls les documents postérieurs au dernier succès sont récupérés.";
+"Already up to date." = "Déjà à jour.";
 "Any export destination you configure yourself" = "Toute destination d'export que vous configurez vous-même";
 "Ask a language model when a field cannot be read" = "Interroger un modèle de langage quand un champ reste illisible";
 "Ask for Touch ID each time they are used" = "Demander Touch ID à chaque utilisation";
@@ -44,6 +46,7 @@
 "Could not import %@" = "Impossible d'importer %@";
 "Could not install the plugin" = "Impossible d'installer le plugin";
 "Could not read the library" = "Impossible de lire la bibliothèque";
+"Could not refresh the catalogue" = "Impossible de rafraîchir le catalogue";
 "Could not remove the source" = "Impossible de supprimer la source";
 "Could not save" = "Enregistrement impossible";
 "Could not save to the keychain" = "Écriture impossible dans le trousseau";
@@ -57,6 +60,7 @@
 "Documents are stored here in a folder structure you can read without this app. Moving them is your call; use “Rescan folder” afterwards." = "Les documents sont rangés ici dans une arborescence lisible sans cette application. Les déplacer est votre choix ; utilisez ensuite « Réanalyser le dossier ».";
 "Documents collected from this source" = "Documents collectés depuis cette source";
 "Documents where a field was guessed rather than declared by the plugin" = "Documents dont un champ a été deviné plutôt que déclaré par le plugin";
+"Download the latest plugins from the project's signed index. Nothing is installed unless the signature checks out." = "Télécharger les derniers plugins depuis l'index signé du projet. Rien n'est installé si la signature ne correspond pas.";
 "Edit…" = "Modifier…";
 "Enabled" = "Activée";
 "Engine %@" = "Moteur %@";
@@ -100,6 +104,7 @@
 "No issues" = "Aucun problème";
 "No local plugin folder" = "Aucun dossier de plugins local";
 "No plugin matches" = "Aucun plugin ne correspond";
+"No plugins installed" = "Aucun plugin installé";
 "No sources yet" = "Aucune source pour l'instant";
 "Nothing is removed from the supplier's portal. The file goes to the Trash, not straight to nowhere." = "Rien n'est supprimé sur le portail du fournisseur. Le fichier va à la corbeille, pas dans le vide.";
 "OK" = "OK";
@@ -121,6 +126,7 @@
 "Provider" = "Fournisseur";
 "Reading invoices" = "Lecture des factures";
 "Rebuild the index from the files on disk" = "Reconstruire l'index à partir des fichiers sur le disque";
+"Refresh from the index" = "Rafraîchir depuis l'index";
 "Reload" = "Recharger";
 "Remember credentials in the keychain" = "Mémoriser les identifiants dans le trousseau";
 "Remember them in my keychain" = "Les mémoriser dans mon trousseau";
@@ -162,6 +168,7 @@
 "Stored on this Mac. Nothing uploads it." = "Stockée sur ce Mac. Rien ne l'envoie ailleurs.";
 "Supplier websites, when you collect" = "Les sites des fournisseurs, quand vous collectez";
 "The URL and any header are stored in this window only — configure a permanent destination in Settings once you are happy with it." = "L'URL et l'en-tête ne sont conservés que dans cette fenêtre — configurez une destination permanente dans les réglages une fois satisfait.";
+"The plugin index address in Settings is not a URL." = "L'adresse de l'index des plugins dans les réglages n'est pas une URL.";
 "The plugin index, to find new and updated plugins" = "L'index des plugins, pour trouver les plugins nouveaux et mis à jour";
 "The same register as JSON, for a script." = "Le même registre en JSON, pour un script.";
 "The stored session has expired. Use “Sign in” to open the portal, deal with two-factor authentication, then collect again." = "La session enregistrée a expiré. Utilisez « Se connecter » pour ouvrir le portail, passez la double authentification, puis relancez la collecte.";
@@ -172,6 +179,7 @@
 "This sends the text of the invoice to the provider you configure. You become responsible for that transfer under the GDPR." = "Cela envoie le texte de la facture au fournisseur que vous configurez. Vous devenez responsable de ce transfert au sens du RGPD.";
 "This year" = "Cette année";
 "Use on-device OCR for scanned PDFs" = "Utiliser l'OCR local pour les PDF scannés";
+"Use “Refresh from the index” to download the published catalogue. Your supplier may not be covered yet — writing a plugin is a single JSON file, see the Plugin developer tab." = "Utilisez « Rafraîchir depuis l'index » pour télécharger le catalogue publié. Votre fournisseur n'est peut-être pas encore couvert — écrire un plugin tient dans un seul fichier JSON, voyez l'onglet Développement de plugins.";
 "Uses Apple's Vision framework. Nothing is sent anywhere." = "Utilise le framework Vision d'Apple. Rien n'est envoyé nulle part.";
 "Webhook" = "Webhook";
 "What leaves this Mac" = "Ce qui sort de ce Mac";

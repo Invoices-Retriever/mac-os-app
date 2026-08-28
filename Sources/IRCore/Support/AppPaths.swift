@@ -84,7 +84,10 @@ public struct Preferences: Codable, Sendable, Hashable {
         enableLLMFallback: false,
         llmProvider: nil,
         interfaceLanguage: nil,
-        pluginIndexURL: "https://raw.githubusercontent.com/Invoices-Retriever/plugins/main/dist/index.json",
+                // The gh-pages branch, which is what the publish workflow writes and
+        // where the detached signature sits beside the index. Reading it raw
+        // works without GitHub Pages being enabled on the repository.
+        pluginIndexURL: "https://raw.githubusercontent.com/Invoices-Retriever/plugins/gh-pages/index.json",
         lastIndexRevision: 0)
 
     public static let settingKey = "preferences"

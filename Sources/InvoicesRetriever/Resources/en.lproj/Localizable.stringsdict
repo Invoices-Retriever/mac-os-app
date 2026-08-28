@@ -243,5 +243,53 @@
 			<string>Look back %d days on the first run</string>
 		</dict>
 	</dict>
+	<key>%d added</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d added</string>
+			<key>other</key>
+			<string>%d added</string>
+		</dict>
+	</dict>
+	<key>%d updated</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d updated</string>
+			<key>other</key>
+			<string>%d updated</string>
+		</dict>
+	</dict>
+	<key>%d withdrawn</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%d withdrawn</string>
+			<key>other</key>
+			<string>%d withdrawn</string>
+		</dict>
+	</dict>
 </dict>
 </plist>

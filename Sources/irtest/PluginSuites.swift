@@ -289,3 +289,46 @@ func runPluginSuites() async {
         }
     }
 }
+
+@MainActor
+func runIndexUpdaterSuites() async {
+
+    await suite("Plugin index updater") {
+        let base = URL(string: "https://invoices-retriever.github.io/plugins/")!
+
+        await test("An ordinary relative path resolves under the index") {
+            let url = try PluginIndexUpdater.resolve(path: "plugins/ovh.json", against: base)
+            expectEqual(url.absoluteString, "https://invoices-retriever.github.io/plugins/plugins/ovh.json")
+        }
+
+        await test("A tampered index cannot point the downloader elsewhere") {
+            // The signature makes this unlikely; the check makes it harmless.
+            for hostile in ["https://evil.example.com/payload.json",
+                            "//evil.example.com/payload.json",
+                            "/etc/passwd",
+                            "../../../../etc/passwd",
+                            "plugins/../../../secrets.json",
+                            ""] {
+                var refused = false
+                do { _ = try PluginIndexUpdater.resolve(path: hostile, against: base) }
+                catch { refused = true }
+                expect(refused, "'\(hostile)' should have been refused")
+            }
+        }
+
+        await test("The signature URL sits next to the index") {
+            let updater = PluginIndexUpdater(indexURL: base.appendingPathComponent("index.json"),
+                                             publicKeyBase64: "x")
+            expectEqual(updater.signatureURL.absoluteString,
+                        "https://invoices-retriever.github.io/plugins/index.json.sig")
+        }
+
+        await test("A build with no signing key refuses to update at all") {
+            let catalog = PluginCatalog(installedDirectory: FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString))
+            let updater = PluginIndexUpdater(indexURL: base.appendingPathComponent("index.json"),
+                                             publicKeyBase64: PluginCatalog.placeholderPublicKey)
+            await expectThrows { _ = try await updater.update(catalog) }
+        }
+    }
+}

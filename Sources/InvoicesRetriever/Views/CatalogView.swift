@@ -52,9 +52,19 @@ struct CatalogView: View {
 
             if entries.isEmpty {
                 ContentUnavailableView {
-                    Label(t("No plugin matches"), systemImage: "magnifyingglass")
+                    Label(model.catalogEntries.isEmpty ? t("No plugins installed") : t("No plugin matches"),
+                          systemImage: model.catalogEntries.isEmpty ? "square.grid.2x2" : "magnifyingglass")
                 } description: {
-                    Text(t("Your supplier may not be covered yet. Writing a plugin is a single JSON file — see the Plugin developer tab."))
+                    Text(model.catalogEntries.isEmpty
+                         ? t("Use “Refresh from the index” to download the published catalogue. Your supplier may not be covered yet — writing a plugin is a single JSON file, see the Plugin developer tab.")
+                         : t("Your supplier may not be covered yet. Writing a plugin is a single JSON file — see the Plugin developer tab."))
+                } actions: {
+                    if model.catalogEntries.isEmpty {
+                        Button(t("Refresh from the index")) {
+                            Task { await model.refreshCatalogue() }
+                        }
+                        .disabled(model.isRefreshingCatalogue)
+                    }
                 }
             } else {
                 ScrollView {
@@ -71,6 +81,15 @@ struct CatalogView: View {
         .navigationTitle(t("Catalogue"))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
+                Button {
+                    Task { await model.refreshCatalogue() }
+                } label: {
+                    Label(t("Refresh from the index"), systemImage: "arrow.triangle.2.circlepath")
+                }
+                .disabled(model.isRefreshingCatalogue)
+                .help(t("Download the latest plugins from the project's signed index. Nothing is installed unless the signature checks out."))
+            }
+            ToolbarItem {
                 Button {
                     isImporting = true
                 } label: {
